@@ -22,10 +22,22 @@ package org.sonar.cxx.visitors;
 import com.sonar.sslr.api.AstNode;
 import com.sonar.sslr.api.Grammar;
 import com.sonar.sslr.api.Token;
+
+import java.util.Arrays;
+import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
+
+import org.sonar.api.batch.fs.InputFile;
+import org.sonar.api.batch.fs.InputModule;
+import org.sonar.api.batch.sensor.SensorContext;
+import org.sonar.api.measures.Metric;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
-import org.sonar.squidbridge.measures.MetricDef;
+import org.sonar.cxx.CxxLanguage;
+import org.sonar.cxx.CxxMetricsFactory;
+import org.sonar.squidbridge.SquidAstVisitor;
+import org.sonar.squidbridge.api.SourceFile;
 
 /**
  * Visitor that counts documented and undocumented API items.<br>
@@ -57,28 +69,71 @@ import org.sonar.squidbridge.measures.MetricDef;
  *
  * @param <GRAMMAR>
  */
-// @Rule(key = "UndocumentedApi", description =
-// "All public APIs should be documented", priority = Priority.MINOR)
 public class CxxPublicApiVisitor<GRAMMAR extends Grammar> extends
-  AbstractCxxPublicApiVisitor<Grammar> {
+    AbstractCxxPublicApiVisitor<Grammar> implements CxxMetricsAggragator {
 
   private static final Logger LOG = Loggers.get(CxxPublicApiVisitor.class);
 
-  private final MetricDef undocumented;
-  private final MetricDef api;
+  private final Metric<Integer> totalAPIMetric;
+  private final Metric<Integer> undocumentedAPIMetric;
+  private final Metric<Double> documentedAPIDensityMetric;
 
-  public interface PublicApiHandler {
+  private class APICount {
+    public APICount(int totalNr, int undocumentedNr) {
+      super();
+      this.totalNr = totalNr;
+      this.undocumentedNr = undocumentedNr;
+    }
 
-    void onPublicApi(AstNode node, String id, List<Token> comments);
+    public int totalNr = 0;
+    public int undocumentedNr = 0;
+
+    public double getDensity() {
+      if (totalNr > 0 && totalNr >= undocumentedNr) {
+        return ((double) totalNr - (double) undocumentedNr) / totalNr * 100.0;
+      }
+      return 0;
+    }
   }
 
-  private PublicApiHandler handler;
+  private APICount currentFileCounter;
+  private APICount currentModuleCounter;
+  private Map<SourceFile, APICount> apiCounterPerFile;
 
-  public CxxPublicApiVisitor(MetricDef publicDocumentedApi,
-    MetricDef publicUndocumentedApi) {
+
+  public CxxPublicApiVisitor(CxxLanguage language) {
     super();
-    api = publicDocumentedApi;
-    undocumented = publicUndocumentedApi;
+    totalAPIMetric = language.<Integer>getMetric(CxxMetricsFactory.Key.PUBLIC_API_KEY);
+    undocumentedAPIMetric = language.<Integer>getMetric(CxxMetricsFactory.Key.PUBLIC_UNDOCUMENTED_API_KEY);
+    documentedAPIDensityMetric = language.<Double>getMetric(CxxMetricsFactory.Key.PUBLIC_DOCUMENTED_API_DENSITY_KEY);
+    withHeaderFileSuffixes(Arrays.asList(language.getHeaderFileSuffixes()));
+  }
+
+  @Override
+  public void init() {
+    super.init();
+    currentFileCounter = new APICount(0, 0);
+    currentModuleCounter = new APICount(0, 0);
+    apiCounterPerFile = new Hashtable<>();
+  }
+
+  @Override
+  public void visitFile(AstNode astNode) {
+    currentFileCounter.totalNr = 0;
+    currentFileCounter.undocumentedNr = 0;
+    super.visitFile(astNode);
+  }
+
+  @Override
+  public void leaveFile(AstNode astNode) {
+    super.leaveFile(astNode);
+
+    SourceFile sourceFile = (SourceFile) getContext().peekSourceCode();
+    currentModuleCounter.totalNr += currentFileCounter.totalNr;
+    currentModuleCounter.undocumentedNr += currentFileCounter.undocumentedNr;
+
+    apiCounterPerFile.put(sourceFile,
+        new APICount(currentFileCounter.totalNr, currentFileCounter.undocumentedNr));
   }
 
   @Override
@@ -88,18 +143,64 @@ public class CxxPublicApiVisitor<GRAMMAR extends Grammar> extends
     LOG.debug("node: {} line: {} id: '{}' documented: {}",
       node.getType(), node.getTokenLine(), id, commented);
 
-    if (handler != null) {
-      handler.onPublicApi(node, id, comments);
-    }
-
     if (!commented) {
-      getContext().peekSourceCode().add(undocumented, 1);
+      currentFileCounter.undocumentedNr++;
     }
 
-    getContext().peekSourceCode().add(api, 1);
+    currentFileCounter.totalNr++;
   }
 
-  public void setHandler(PublicApiHandler handler) {
-    this.handler = handler;
+  @Override
+  public SquidAstVisitor<Grammar> getVisitor() {
+    return this;
+  }
+
+  @Override
+  public void publishMeasureForFile(InputFile inputFile, SourceFile squidFile, SensorContext context) {
+    APICount c = apiCounterPerFile.get(squidFile);
+    if (c == null) {
+      c = new APICount(0, 0);
+    }
+
+    context.<Integer>newMeasure()
+      .forMetric(totalAPIMetric)
+      .on(inputFile)
+      .withValue(c.totalNr)
+      .save();
+
+    context.<Integer>newMeasure()
+      .forMetric(undocumentedAPIMetric)
+      .on(inputFile)
+      .withValue(c.undocumentedNr)
+      .save();
+
+    context.<Double>newMeasure()
+      .forMetric(documentedAPIDensityMetric)
+      .on(inputFile)
+      .withValue(c.getDensity())
+      .save();
+
+  }
+
+  @Override
+  public void publishMeasureForProject(InputModule module, SensorContext context) {
+    context.<Integer>newMeasure()
+      .forMetric(totalAPIMetric)
+      .on(module)
+      .withValue(currentModuleCounter.totalNr)
+      .save();
+
+    context.<Integer>newMeasure()
+      .forMetric(undocumentedAPIMetric)
+      .on(module)
+      .withValue(currentModuleCounter.undocumentedNr)
+      .save();
+
+    context.<Double>newMeasure()
+      .forMetric(documentedAPIDensityMetric)
+      .on(module)
+      .withValue(currentModuleCounter.getDensity())
+      .save();
   }
 }
+

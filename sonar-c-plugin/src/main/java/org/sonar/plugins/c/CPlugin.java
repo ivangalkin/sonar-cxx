@@ -29,10 +29,13 @@ import org.sonar.api.batch.rule.CheckFactory;
 import org.sonar.api.batch.sensor.SensorContext;
 import org.sonar.api.config.Configuration;
 import org.sonar.api.config.PropertyDefinition;
+import org.sonar.api.measures.Metrics;
 import org.sonar.api.measures.FileLinesContextFactory;
+import org.sonar.api.measures.Metric;
 import org.sonar.api.platform.ServerFileSystem;
 import org.sonar.api.resources.Qualifiers;
 import org.sonar.api.server.rule.RulesDefinitionXmlLoader;
+import org.sonar.cxx.CxxMetricsFactory;
 import org.sonar.cxx.sensors.clangsa.CxxClangSARuleRepository;
 import org.sonar.cxx.sensors.clangsa.CxxClangSASensor;
 import org.sonar.cxx.sensors.clangtidy.CxxClangTidyRuleRepository;
@@ -57,7 +60,6 @@ import org.sonar.cxx.sensors.rats.CxxRatsSensor;
 import org.sonar.cxx.sensors.squid.CustomCxxRulesDefinition;
 import org.sonar.cxx.sensors.squid.CxxSquidSensor;
 import org.sonar.cxx.sensors.tests.xunit.CxxXunitSensor;
-import org.sonar.cxx.sensors.utils.CxxMetrics;
 import org.sonar.cxx.sensors.valgrind.CxxValgrindRuleRepository;
 import org.sonar.cxx.sensors.valgrind.CxxValgrindSensor;
 import org.sonar.cxx.sensors.veraxx.CxxVeraxxRuleRepository;
@@ -512,10 +514,16 @@ public final class CPlugin implements Plugin {
     return l;
   }
 
-  public static class CxxMetricsImp extends CxxMetrics {
+  public static class CxxMetricsImp implements Metrics {
+
+    private static final List<Metric> METRICS = CxxMetricsFactory.generateList(CLanguage.KEY, CLanguage.PROPSKEY);
 
     public CxxMetricsImp(Configuration settings) {
-      super(new CLanguage(settings));
+    }
+
+    @Override
+    public List<Metric> getMetrics() {
+      return METRICS;
     }
   }
 

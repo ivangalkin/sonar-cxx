@@ -32,9 +32,12 @@ import org.sonar.api.batch.sensor.SensorContext;
 import org.sonar.api.config.Configuration;
 import org.sonar.api.config.PropertyDefinition;
 import org.sonar.api.measures.FileLinesContextFactory;
+import org.sonar.api.measures.Metric;
+import org.sonar.api.measures.Metrics;
 import org.sonar.api.platform.ServerFileSystem;
 import org.sonar.api.resources.Qualifiers;
 import org.sonar.api.server.rule.RulesDefinitionXmlLoader;
+import org.sonar.cxx.CxxMetricsFactory;
 import org.sonar.cxx.sensors.clangsa.CxxClangSARuleRepository;
 import org.sonar.cxx.sensors.clangsa.CxxClangSASensor;
 import org.sonar.cxx.sensors.clangtidy.CxxClangTidyRuleRepository;
@@ -66,7 +69,6 @@ import org.sonar.cxx.sensors.tests.dotnet.CxxUnitTestResultsAggregator;
 import org.sonar.cxx.sensors.tests.dotnet.CxxUnitTestResultsImportSensor;
 import org.sonar.cxx.sensors.tests.dotnet.UnitTestConfiguration;
 import org.sonar.cxx.sensors.tests.xunit.CxxXunitSensor;
-import org.sonar.cxx.sensors.utils.CxxMetrics;
 import org.sonar.cxx.sensors.valgrind.CxxValgrindRuleRepository;
 import org.sonar.cxx.sensors.valgrind.CxxValgrindSensor;
 import org.sonar.cxx.sensors.veraxx.CxxVeraxxRuleRepository;
@@ -518,7 +520,7 @@ public final class CxxPlugin implements Plugin {
     l.addAll(compilerWarningsProperties());
     l.addAll(duplicationsProperties());
 
-    //extra metrics
+    // extra metrics
     l.add(FunctionComplexityMetrics.class);
     l.add(FunctionSizeMetrics.class);
 
@@ -569,10 +571,15 @@ public final class CxxPlugin implements Plugin {
     return l;
   }
 
-  public static class CxxMetricsImp extends CxxMetrics {
+  public static class CxxMetricsImp implements Metrics {
+    private static final List<Metric> METRICS = CxxMetricsFactory.generateList(CppLanguage.KEY, CppLanguage.PROPSKEY);
 
     public CxxMetricsImp(Configuration settings) {
-      super(new CppLanguage(settings));
+    }
+
+    @Override
+    public List<Metric> getMetrics() {
+      return METRICS;
     }
   }
 

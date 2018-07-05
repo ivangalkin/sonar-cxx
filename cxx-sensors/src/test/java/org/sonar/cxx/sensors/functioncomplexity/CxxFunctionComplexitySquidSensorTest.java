@@ -21,10 +21,8 @@ package org.sonar.cxx.sensors.functioncomplexity;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.Serializable;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
-import java.util.Collection;
 import java.util.Optional;
 
 import org.assertj.core.api.SoftAssertions;
@@ -33,9 +31,7 @@ import static org.mockito.Mockito.*;
 import org.sonar.api.batch.fs.InputFile;
 import org.sonar.api.batch.fs.internal.DefaultInputFile;
 import org.sonar.api.batch.fs.internal.TestInputFileBuilder;
-import org.sonar.api.batch.measure.Metric;
 import org.sonar.api.batch.sensor.internal.SensorContextTester;
-import org.sonar.api.batch.sensor.measure.Measure;
 import org.sonar.api.measures.FileLinesContext;
 import org.sonar.api.measures.FileLinesContextFactory;
 import org.sonar.cxx.CxxAstScanner;
@@ -48,7 +44,7 @@ public class CxxFunctionComplexitySquidSensorTest {
   private FileLinesContextFactory fileLinesContextFactory;
   private FileLinesContext fileLinesContext;
   private CxxLanguage language;
-  private SensorContextTester sensorContext;
+  private SensorContextTester context;
   private CxxFunctionComplexitySquidSensor sensor;
 
   @Before
@@ -71,8 +67,8 @@ public class CxxFunctionComplexitySquidSensorTest {
     DefaultInputFile inputFile = TestInputFileBuilder.create("ProjectKey", baseDir, target).setContents(content)
         .setCharset(Charset.forName("UTF-8")).setLanguage(language.getKey()).setType(InputFile.Type.MAIN).build();
 
-    sensorContext = SensorContextTester.create(baseDir);
-    sensorContext.fileSystem().add(inputFile);
+    context = SensorContextTester.create(baseDir);
+    context.fileSystem().add(inputFile);
 
     when(fileLinesContextFactory.createFor(inputFile)).thenReturn(fileLinesContext);
 
@@ -87,42 +83,27 @@ public class CxxFunctionComplexitySquidSensorTest {
     DefaultInputFile inputFile = TestInputFileBuilder.create("ProjectKey", baseDir, target).setContents(content)
         .setCharset(Charset.forName("UTF-8")).setLanguage(language.getKey()).setType(InputFile.Type.MAIN).build();
 
-    sensorContext = SensorContextTester.create(baseDir);
-    sensorContext.fileSystem().add(inputFile);
+    context = SensorContextTester.create(baseDir);
+    context.fileSystem().add(inputFile);
 
     when(fileLinesContextFactory.createFor(inputFile)).thenReturn(fileLinesContext);
 
     return inputFile;
   }
 
-  public <T> boolean containsAll(Collection<T> c) {
-    return false;
-  }
-
-  private <T extends Serializable> T getMeasureValue(SensorContextTester sensorContext, String componentKey,
-      Metric<T> metric) {
-    Collection<Measure> measures = sensorContext.measures(componentKey);
-    T value = null;
-    for (Measure m : measures) {
-      if (m.metric() == metric) {
-        value = (T) m.value();
-      }
-    }
-    return value;
-  }
-
   @Test
   public void testPublishMeasuresForProject() throws IOException {
     DefaultInputFile inputFile = getInputFile();
 
-    CxxAstScanner.scanSingleFile(inputFile, sensorContext, TestUtils.mockCxxLanguage(), sensor.getVisitor());
-    sensor.publishMeasureForProject(sensorContext.module(), sensorContext);
+    CxxAstScanner.scanSingleFile(inputFile, context, TestUtils.mockCxxLanguage(), sensor.getVisitor());
+    sensor.publishMeasureForProject(context.module(), context);
+    final String moduleKey = context.module().key();
 
     SoftAssertions softly = new SoftAssertions();
-    softly.assertThat(getMeasureValue(sensorContext, sensorContext.module().key(), FunctionComplexityMetrics.COMPLEX_FUNCTIONS)).isEqualTo(4);
-    softly.assertThat(getMeasureValue(sensorContext, sensorContext.module().key(), FunctionComplexityMetrics.COMPLEX_FUNCTIONS_LOC)).isEqualTo(44);
-    softly.assertThat(getMeasureValue(sensorContext, sensorContext.module().key(), FunctionComplexityMetrics.COMPLEX_FUNCTIONS_PERC)).isEqualTo(40.0);
-    softly.assertThat(getMeasureValue(sensorContext, sensorContext.module().key(), FunctionComplexityMetrics.COMPLEX_FUNCTIONS_LOC_PERC)).isEqualTo(80);
+    softly.assertThat(context.measure(moduleKey, FunctionComplexityMetrics.COMPLEX_FUNCTIONS).value()).isEqualTo(4);
+    softly.assertThat(context.measure(moduleKey, FunctionComplexityMetrics.COMPLEX_FUNCTIONS_LOC).value()).isEqualTo(44);
+    softly.assertThat(context.measure(moduleKey, FunctionComplexityMetrics.COMPLEX_FUNCTIONS_PERC).value()).isEqualTo(40.0);
+    softly.assertThat(context.measure(moduleKey, FunctionComplexityMetrics.COMPLEX_FUNCTIONS_LOC_PERC).value()).isEqualTo(80);
     softly.assertAll();
   }
 
@@ -130,14 +111,15 @@ public class CxxFunctionComplexitySquidSensorTest {
   public void testPublishMeasuresForEmptyProject() throws IOException {
     DefaultInputFile inputFile = getEmptyInputFile();
 
-    CxxAstScanner.scanSingleFile(inputFile, sensorContext, TestUtils.mockCxxLanguage(), sensor.getVisitor());
-    sensor.publishMeasureForProject(sensorContext.module(), sensorContext);
+    CxxAstScanner.scanSingleFile(inputFile, context, TestUtils.mockCxxLanguage(), sensor.getVisitor());
+    sensor.publishMeasureForProject(context.module(), context);
+    final String moduleKey = context.module().key();
 
     SoftAssertions softly = new SoftAssertions();
-    softly.assertThat(getMeasureValue(sensorContext, sensorContext.module().key(), FunctionComplexityMetrics.COMPLEX_FUNCTIONS)).isEqualTo(0);
-    softly.assertThat(getMeasureValue(sensorContext, sensorContext.module().key(), FunctionComplexityMetrics.COMPLEX_FUNCTIONS_LOC)).isEqualTo(0);
-    softly.assertThat(getMeasureValue(sensorContext, sensorContext.module().key(), FunctionComplexityMetrics.COMPLEX_FUNCTIONS_PERC)).isEqualTo(0);
-    softly.assertThat(getMeasureValue(sensorContext, sensorContext.module().key(), FunctionComplexityMetrics.COMPLEX_FUNCTIONS_LOC_PERC)).isEqualTo(0);
+    softly.assertThat(context.measure(moduleKey, FunctionComplexityMetrics.COMPLEX_FUNCTIONS).value()).isEqualTo(0);
+    softly.assertThat(context.measure(moduleKey, FunctionComplexityMetrics.COMPLEX_FUNCTIONS_LOC).value()).isEqualTo(0);
+    softly.assertThat(context.measure(moduleKey, FunctionComplexityMetrics.COMPLEX_FUNCTIONS_PERC).value()).isEqualTo(0);
+    softly.assertThat(context.measure(moduleKey, FunctionComplexityMetrics.COMPLEX_FUNCTIONS_LOC_PERC).value()).isEqualTo(0);
     softly.assertAll();
   }
 
@@ -145,14 +127,15 @@ public class CxxFunctionComplexitySquidSensorTest {
   public void testPublishMeasuresForFile() throws IOException {
     DefaultInputFile inputFile = getInputFile();
 
-    SourceFile squidFile = CxxAstScanner.scanSingleFile(inputFile, sensorContext, TestUtils.mockCxxLanguage(), sensor.getVisitor());
-    sensor.publishMeasureForFile(inputFile, squidFile, sensorContext);
+    SourceFile squidFile = CxxAstScanner.scanSingleFile(inputFile, context, TestUtils.mockCxxLanguage(), sensor.getVisitor());
+    sensor.publishMeasureForFile(inputFile, squidFile, context);
+    final String fileKey = inputFile.key();
 
     SoftAssertions softly = new SoftAssertions();
-    softly.assertThat(getMeasureValue(sensorContext, inputFile.key(), FunctionComplexityMetrics.COMPLEX_FUNCTIONS)).isEqualTo(4);
-    softly.assertThat(getMeasureValue(sensorContext, inputFile.key(), FunctionComplexityMetrics.COMPLEX_FUNCTIONS_LOC)).isEqualTo(44);
-    softly.assertThat(getMeasureValue(sensorContext, inputFile.key(), FunctionComplexityMetrics.COMPLEX_FUNCTIONS_PERC)).isEqualTo(40.0);
-    softly.assertThat(getMeasureValue(sensorContext, inputFile.key(), FunctionComplexityMetrics.COMPLEX_FUNCTIONS_LOC_PERC)).isEqualTo(80);
+    softly.assertThat(context.measure(fileKey, FunctionComplexityMetrics.COMPLEX_FUNCTIONS).value()).isEqualTo(4);
+    softly.assertThat(context.measure(fileKey, FunctionComplexityMetrics.COMPLEX_FUNCTIONS_LOC).value()).isEqualTo(44);
+    softly.assertThat(context.measure(fileKey, FunctionComplexityMetrics.COMPLEX_FUNCTIONS_PERC).value()).isEqualTo(40.0);
+    softly.assertThat(context.measure(fileKey, FunctionComplexityMetrics.COMPLEX_FUNCTIONS_LOC_PERC).value()).isEqualTo(80);
     softly.assertAll();
   }
 
@@ -160,14 +143,15 @@ public class CxxFunctionComplexitySquidSensorTest {
   public void testPublishMeasuresForEmptyFile() throws IOException {
     DefaultInputFile inputFile = getEmptyInputFile();
 
-    SourceFile squidFile = CxxAstScanner.scanSingleFile(inputFile, sensorContext, TestUtils.mockCxxLanguage(), sensor.getVisitor());
-    sensor.publishMeasureForFile(inputFile, squidFile, sensorContext);
+    SourceFile squidFile = CxxAstScanner.scanSingleFile(inputFile, context, TestUtils.mockCxxLanguage(), sensor.getVisitor());
+    sensor.publishMeasureForFile(inputFile, squidFile, context);
+    final String fileKey = inputFile.key();
 
     SoftAssertions softly = new SoftAssertions();
-    softly.assertThat(getMeasureValue(sensorContext, inputFile.key(), FunctionComplexityMetrics.COMPLEX_FUNCTIONS)).isEqualTo(0);
-    softly.assertThat(getMeasureValue(sensorContext, inputFile.key(), FunctionComplexityMetrics.COMPLEX_FUNCTIONS_LOC)).isEqualTo(0);
-    softly.assertThat(getMeasureValue(sensorContext, inputFile.key(), FunctionComplexityMetrics.COMPLEX_FUNCTIONS_PERC)).isEqualTo(0);
-    softly.assertThat(getMeasureValue(sensorContext, inputFile.key(), FunctionComplexityMetrics.COMPLEX_FUNCTIONS_LOC_PERC)).isEqualTo(0);
+    softly.assertThat(context.measure(fileKey, FunctionComplexityMetrics.COMPLEX_FUNCTIONS).value()).isEqualTo(0);
+    softly.assertThat(context.measure(fileKey, FunctionComplexityMetrics.COMPLEX_FUNCTIONS_LOC).value()).isEqualTo(0);
+    softly.assertThat(context.measure(fileKey, FunctionComplexityMetrics.COMPLEX_FUNCTIONS_PERC).value()).isEqualTo(0);
+    softly.assertThat(context.measure(fileKey, FunctionComplexityMetrics.COMPLEX_FUNCTIONS_LOC_PERC).value()).isEqualTo(0);
     softly.assertAll();
   }
 }

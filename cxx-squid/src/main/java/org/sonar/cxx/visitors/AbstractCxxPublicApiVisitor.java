@@ -68,10 +68,8 @@ import org.sonar.squidbridge.checks.SquidCheck;
  *
  * @param <GRAMMAR>
  */
-// @Rule(key = "UndocumentedApi", description =
-// "All public APIs should be documented", priority = Priority.MINOR)
-public abstract class AbstractCxxPublicApiVisitor<GRAMMAR extends Grammar>
-    extends SquidCheck<Grammar> implements AstVisitor {
+public abstract class AbstractCxxPublicApiVisitor<GRAMMAR extends Grammar> extends SquidCheck<Grammar>
+    implements AstVisitor {
 
   private static final Logger LOG = Loggers.get(AbstractCxxPublicApiVisitor.class);
 
@@ -91,19 +89,15 @@ public abstract class AbstractCxxPublicApiVisitor<GRAMMAR extends Grammar>
 
   protected abstract void onPublicApi(AstNode node, String id, List<Token> comments);
 
-  public interface PublicApiHandler {
-
-    void onPublicApi(AstNode node, String id, List<Token> comments);
-  }
-
   @Override
   public void init() {
-    subscribeTo(CxxGrammarImpl.classSpecifier);
-    subscribeTo(CxxGrammarImpl.memberDeclaration);
-    subscribeTo(CxxGrammarImpl.functionDefinition);
-    subscribeTo(CxxGrammarImpl.enumSpecifier);
-    subscribeTo(CxxGrammarImpl.initDeclaratorList);
-    subscribeTo(CxxGrammarImpl.aliasDeclaration);
+    subscribeTo(
+        CxxGrammarImpl.classSpecifier,
+        CxxGrammarImpl.memberDeclaration,
+        CxxGrammarImpl.functionDefinition,
+        CxxGrammarImpl.enumSpecifier,
+        CxxGrammarImpl.initDeclaratorList,
+        CxxGrammarImpl.aliasDeclaration);
   }
 
   @Override

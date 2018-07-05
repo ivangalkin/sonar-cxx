@@ -17,17 +17,26 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-package org.sonar.cxx.sensors.squid;
+package org.sonar.cxx.visitors;
 
-import com.sonar.sslr.api.Grammar;
 import org.sonar.api.batch.fs.InputFile;
 import org.sonar.api.batch.fs.InputModule;
 import org.sonar.api.batch.sensor.SensorContext;
 import org.sonar.squidbridge.SquidAstVisitor;
 import org.sonar.squidbridge.api.SourceFile;
 
-public interface SquidSensor {
-  SquidAstVisitor<Grammar> getVisitor();
+import com.sonar.sslr.api.Grammar;
+
+/**
+ * Interface, that expresses the ability of a visitor to process multiple files
+ * and to aggregate the corresponding {@link InputFile} results into
+ * {@link InputModule} results.
+ */
+public interface CxxMetricsAggragator {
+
+  public SquidAstVisitor<Grammar> getVisitor();
+
   void publishMeasureForFile(InputFile inputFile, SourceFile squidFile, SensorContext context);
+
   void publishMeasureForProject(InputModule module, SensorContext context);
 }
