@@ -91,7 +91,7 @@ public class CxxMetricsFactory {
         "Public API", Metric.ValueType.INT)
         .setDescription("Public API")
         .setDirection(Metric.DIRECTION_WORST)
-         .setQualitative(false)
+         .setQualitative(Boolean.FALSE)
          .setDomain(domain)
          .create();
     metrics.put(Key.PUBLIC_API_KEY, PUBLIC_API);
@@ -101,11 +101,11 @@ public class CxxMetricsFactory {
         Metric.ValueType.PERCENT)
         .setDescription("Public documented classes and functions balanced by ncloc")
         .setDirection(Metric.DIRECTION_BETTER)
-        .setQualitative(true)
+        .setQualitative(Boolean.TRUE)
         .setDomain(domain)
         .setWorstValue(0.0)
         .setBestValue(100.0)
-        .setOptimizedBestValue(true)
+        .setOptimizedBestValue(Boolean.TRUE)
         .create();
     metrics.put(Key.PUBLIC_DOCUMENTED_API_DENSITY_KEY, PUBLIC_DOCUMENTED_API_DENSITY);
 
@@ -114,10 +114,10 @@ public class CxxMetricsFactory {
         Metric.ValueType.INT)
         .setDescription("Public undocumented classes, functions and variables")
         .setDirection(Metric.DIRECTION_WORST)
-        .setQualitative(true)
+        .setQualitative(Boolean.TRUE)
         .setDomain(domain)
         .setBestValue(0.0)
-        .setOptimizedBestValue(true)
+        .setOptimizedBestValue(Boolean.TRUE)
         .create();
     metrics.put(Key.PUBLIC_UNDOCUMENTED_API_KEY, PUBLIC_UNDOCUMENTED_API);
 
@@ -148,7 +148,7 @@ public class CxxMetricsFactory {
         .setDirection(Metric.DIRECTION_WORST)
         .setDomain(domain)
         .setBestValue(0.0)
-        .setOptimizedBestValue(true)
+        .setOptimizedBestValue(Boolean.TRUE)
         .create();
     metrics.put(metricKey, metric);
   }

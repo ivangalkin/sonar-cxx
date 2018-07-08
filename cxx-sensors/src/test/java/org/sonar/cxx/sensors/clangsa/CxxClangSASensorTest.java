@@ -70,8 +70,14 @@ public class CxxClangSASensorTest {
     settings.setProperty(language.getPluginProperty(CxxClangSASensor.REPORT_PATH_KEY), "clangsa-reports/clangsa-report.plist");
     context.setSettings(settings);
 
+    /*
+     * 2 issues
+     */
     DefaultInputFile testFile0 = TestInputFileBuilder.create("ProjectKey", "src/lib/component0.cc").setLanguage("cpp")
         .initMetadata(new String("asd\nasdas\nasda\n")).build();
+    /*
+     * 1 issue
+     */
     DefaultInputFile testFile1 = TestInputFileBuilder.create("ProjectKey", "src/lib/component1.cc").setLanguage("cpp")
         .initMetadata(new String("asd\nasdas\nasda\n")).build();
 
@@ -81,21 +87,48 @@ public class CxxClangSASensorTest {
     CxxClangSASensor sensor = new CxxClangSASensor(language);
     sensor.execute(context);
     assertThat(context.allIssues()).hasSize(3);
+  }
+
+  @Test
+  public void shouldReportCorrectMetrics() {
+    SensorContextTester context = SensorContextTester.create(fs.baseDir());
+
+    settings.setProperty(language.getPluginProperty(CxxClangSASensor.REPORT_PATH_KEY), "clangsa-reports/clangsa-report.plist");
+    context.setSettings(settings);
+
+    /*
+     * 2 issues
+     */
+    DefaultInputFile testFile0 = TestInputFileBuilder.create("ProjectKey", "src/lib/component0.cc").setLanguage("cpp")
+        .initMetadata(new String("asd\nasdas\nasda\n")).build();
+    /*
+     * 1 issue
+     */
+    DefaultInputFile testFile1 = TestInputFileBuilder.create("ProjectKey", "src/lib/component1.cc").setLanguage("cpp")
+        .initMetadata(new String("asd\nasdas\nasda\n")).build();
+
+    context.fileSystem().add(testFile0);
+    context.fileSystem().add(testFile1);
+
+    CxxClangSASensor sensor = new CxxClangSASensor(language);
+    sensor.execute(context);
 
     // assert that the files were annotated with a new measurement (metric) for
     // number of ClangSA issues
+    SoftAssertions softly = new SoftAssertions();
     Measure<Integer> nrOfIssuesFile0 = context.<Integer>measure(testFile0.key(),
         language.getMetric(CxxMetricsFactory.Key.CLANG_SA_SENSOR_ISSUES_KEY));
-    assertThat(nrOfIssuesFile0.value()).isEqualTo(2);
+    softly.assertThat(nrOfIssuesFile0.value()).isEqualTo(2);
 
     Measure<Integer> nrOfIssuesFile1 = context.<Integer>measure(testFile1.key(),
         language.getMetric(CxxMetricsFactory.Key.CLANG_SA_SENSOR_ISSUES_KEY));
-    assertThat(nrOfIssuesFile1.value()).isEqualTo(1);
+    softly.assertThat(nrOfIssuesFile1.value()).isEqualTo(1);
 
     // assert that the module is annotated with the total sum of ClangSA issues
     Measure<Integer> nrOfIssuesModule = context.<Integer>measure(context.module().key(),
         language.getMetric(CxxMetricsFactory.Key.CLANG_SA_SENSOR_ISSUES_KEY));
-    assertThat(nrOfIssuesModule.value()).isEqualTo(3);
+    softly.assertThat(nrOfIssuesModule.value()).isEqualTo(3);
+    softly.assertAll();
   }
 
   @Test

@@ -24,7 +24,7 @@ import com.sonar.sslr.api.Grammar;
 import com.sonar.sslr.api.Token;
 
 import java.util.Arrays;
-import java.util.Hashtable;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -41,6 +41,13 @@ import org.sonar.squidbridge.api.SourceFile;
 
 /**
  * Visitor that counts documented and undocumented API items.<br>
+ *
+ * Per-file measurements are store in the internal map. This map is used for later
+ * metrics calculation for entire module.
+ *
+ * ATTENTION! From performance reasons the map is not synchronized. For
+ * parallel file processing this must be changed.
+ *
  * Following items are counted as public API:
  * <ul>
  * <li>classes/structures</li>
@@ -114,7 +121,7 @@ public class CxxPublicApiVisitor<GRAMMAR extends Grammar> extends
     super.init();
     currentFileCounter = new APICount(0, 0);
     currentModuleCounter = new APICount(0, 0);
-    apiCounterPerFile = new Hashtable<>();
+    apiCounterPerFile = new HashMap<>();
   }
 
   @Override

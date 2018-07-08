@@ -21,7 +21,8 @@ package org.sonar.cxx.sensors.functionsize;
 
 import com.sonar.sslr.api.AstNode;
 import com.sonar.sslr.api.Grammar;
-import java.util.Hashtable;
+
+import java.util.HashMap;
 import java.util.Map;
 
 import org.sonar.api.batch.fs.InputFile;
@@ -40,6 +41,17 @@ import org.sonar.squidbridge.api.SourceFile;
 import org.sonar.squidbridge.api.SourceFunction;
 
 //TODO move from cxx-sensors to cxx-squid
+
+/**
+ *
+ * {@link SquidAstVisitor} that collects function sizes for each file and stores
+ * this measurements in the internal maps. These maps are used for later metrics
+ * calculation for entire module.
+ *
+ * ATTENTION! From performance reasons the maps are not synchronized. For
+ * parallel file processing this must be changed.
+ *
+ */
 public class CxxFunctionSizeSquidSensor extends SquidAstVisitor<Grammar> implements CxxMetricsAggragator {
 
   private static final Logger LOG = Loggers.get(CxxFunctionSizeSquidSensor.class);
@@ -56,9 +68,9 @@ public class CxxFunctionSizeSquidSensor extends SquidAstVisitor<Grammar> impleme
 
   private int locOverThreshold = 0;
 
-  private Map<SourceFile, FunctionCount> bigFunctionsPerFile = new Hashtable<>();
+  private Map<SourceFile, FunctionCount> bigFunctionsPerFile = new HashMap<>();
 
-  private Map<SourceFile, FunctionCount> locInBigFunctionsPerFile = new Hashtable<>();
+  private Map<SourceFile, FunctionCount> locInBigFunctionsPerFile = new HashMap<>();
 
   public CxxFunctionSizeSquidSensor(CxxLanguage language){
     this.sizeThreshold = language.getIntegerOption(FUNCTION_SIZE_THRESHOLD_KEY).orElse(20);

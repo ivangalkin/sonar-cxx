@@ -21,10 +21,13 @@ package org.sonar.plugins.cxx.squid;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
+import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
+
+import org.assertj.core.api.SoftAssertions;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -38,8 +41,14 @@ import org.sonar.api.batch.sensor.internal.SensorContextTester;
 import org.sonar.api.measures.CoreMetrics;
 import org.sonar.api.measures.FileLinesContext;
 import org.sonar.api.measures.FileLinesContextFactory;
+import org.sonar.api.measures.Metric;
 import org.sonar.cxx.CxxLanguage;
+import org.sonar.cxx.CxxMetricsFactory;
 import org.sonar.cxx.sensors.coverage.CxxCoverageSensor;
+import org.sonar.cxx.sensors.functioncomplexity.CxxFunctionComplexitySquidSensor;
+import org.sonar.cxx.sensors.functioncomplexity.FunctionComplexityMetrics;
+import org.sonar.cxx.sensors.functionsize.CxxFunctionSizeSquidSensor;
+import org.sonar.cxx.sensors.functionsize.FunctionSizeMetrics;
 import org.sonar.cxx.sensors.squid.CxxSquidSensor;
 import org.sonar.cxx.sensors.utils.TestUtils;
 
@@ -66,127 +75,175 @@ public class CxxSquidSensorTest {
       null);
   }
 
-  @Test
-  public void testCollectingSquidMetrics() throws IOException {
-    File baseDir = TestUtils.loadResource("/org/sonar/cxx/sensors/codechunks-project");
-    File target = new File(baseDir, "code_chunks.cc");
-
+  private DefaultInputFile buildTestInputFile(File baseDir, String fileName) throws IOException
+  {
+    File target = new File(baseDir, fileName);
     String content = new String(Files.readAllBytes(target.toPath()), "UTF-8");
     DefaultInputFile inputFile = TestInputFileBuilder.create("ProjectKey", baseDir, target).setContents(content)
       .setCharset(Charset.forName("UTF-8")).setLanguage(language.getKey())
       .setType(InputFile.Type.MAIN).build();
-
-    SensorContextTester context = SensorContextTester.create(baseDir);
-    context.fileSystem().add(inputFile);
-    sensor.execute(context);
-
-    assertThat(context.measure(inputFile.key(), CoreMetrics.FILES).value()).isEqualTo(1);
-    assertThat(context.measure(inputFile.key(), CoreMetrics.NCLOC).value()).isEqualTo(54);
-    assertThat(context.measure(inputFile.key(), CoreMetrics.STATEMENTS).value()).isEqualTo(50);
-    assertThat(context.measure(inputFile.key(), CoreMetrics.FUNCTIONS).value()).isEqualTo(7);
-    assertThat(context.measure(inputFile.key(), CoreMetrics.CLASSES).value()).isEqualTo(0);
-    assertThat(context.measure(inputFile.key(), CoreMetrics.COMPLEXITY).value()).isEqualTo(19);
-    assertThat(context.measure(inputFile.key(), CoreMetrics.COMMENT_LINES).value()).isEqualTo(15);
+    return inputFile;
   }
 
   @Test
-  public void testComplexitySquidMetrics() throws UnsupportedEncodingException, IOException {
+  public void testCollectingSquidMetrics() throws IOException {
+    File baseDir = TestUtils.loadResource("/org/sonar/cxx/sensors/codechunks-project");
+    DefaultInputFile inputFile0 = buildTestInputFile(baseDir, "code_chunks.cc");
+
+    SensorContextTester context = SensorContextTester.create(baseDir);
+    context.fileSystem().add(inputFile0);
+    sensor.execute(context);
+
+    SoftAssertions softly = new SoftAssertions();
+    softly.assertThat(context.measure(inputFile0.key(), CoreMetrics.FILES).value()).isEqualTo(1);
+    softly.assertThat(context.measure(inputFile0.key(), CoreMetrics.NCLOC).value()).isEqualTo(54);
+    softly.assertThat(context.measure(inputFile0.key(), CoreMetrics.STATEMENTS).value()).isEqualTo(50);
+    softly.assertThat(context.measure(inputFile0.key(), CoreMetrics.FUNCTIONS).value()).isEqualTo(7);
+    softly.assertThat(context.measure(inputFile0.key(), CoreMetrics.CLASSES).value()).isEqualTo(0);
+    softly.assertThat(context.measure(inputFile0.key(), CoreMetrics.COMPLEXITY).value()).isEqualTo(19);
+    softly.assertThat(context.measure(inputFile0.key(), CoreMetrics.COGNITIVE_COMPLEXITY).value()).isEqualTo(8);
+    softly.assertThat(context.measure(inputFile0.key(), CoreMetrics.COMMENT_LINES).value()).isEqualTo(15);
+    softly.assertAll();
+  }
+
+  @Test
+  public void testComplexitySquidMetrics() throws IOException {
+    when(this.language.getIntegerOption(same(CxxFunctionComplexitySquidSensor.FUNCTION_COMPLEXITY_THRESHOLD_KEY))).thenReturn(Optional.of(3));
+    when(this.language.getIntegerOption(same(CxxFunctionSizeSquidSensor.FUNCTION_SIZE_THRESHOLD_KEY))).thenReturn(Optional.of(3));
+
     File baseDir = TestUtils.loadResource("/org/sonar/cxx/sensors/complexity-project");
-    File target = new File(baseDir, "complexity.cc");
-
-    String content = new String(Files.readAllBytes(target.toPath()), "UTF-8");
-    DefaultInputFile inputFile = TestInputFileBuilder.create("ProjectKey", baseDir, target).setContents(content)
-      .setLanguage(language.getKey()).setType(InputFile.Type.MAIN).build();
+    DefaultInputFile inputFile = buildTestInputFile(baseDir, "complexity.cc");
 
     SensorContextTester context = SensorContextTester.create(baseDir);
     context.fileSystem().add(inputFile);
     sensor.execute(context);
 
-    assertThat(context.measure(inputFile.key(), CoreMetrics.FILES).value()).isEqualTo(1);
-    assertThat(context.measure(inputFile.key(), CoreMetrics.FUNCTIONS).value()).isEqualTo(22);
-    assertThat(context.measure(inputFile.key(), CoreMetrics.CLASSES).value()).isEqualTo(2);
-    assertThat(context.measure(inputFile.key(), CoreMetrics.COMPLEXITY).value()).isEqualTo(38);
+    final Integer f = 22; // total number of functions in file
+
+    SoftAssertions softly = new SoftAssertions();
+    softly.assertThat(context.measure(inputFile.key(), CoreMetrics.FILES).value()).isEqualTo(1);
+    softly.assertThat(context.measure(inputFile.key(), CoreMetrics.FUNCTIONS).value()).isEqualTo(f);
+    softly.assertThat(context.measure(inputFile.key(), CoreMetrics.CLASSES).value()).isEqualTo(2);
+    softly.assertThat(context.measure(inputFile.key(), CoreMetrics.COMPLEXITY).value()).isEqualTo(38);
+    softly.assertThat(context.measure(inputFile.key(), CoreMetrics.COGNITIVE_COMPLEXITY).value()).isEqualTo(16);
+
+    softly.assertThat(context.measure(inputFile.key(), FunctionComplexityMetrics.COMPLEX_FUNCTIONS).value()).isEqualTo(1);
+    softly.assertThat(context.measure(inputFile.key(), FunctionComplexityMetrics.COMPLEX_FUNCTIONS_PERC).value()).isEqualTo((double) 1 / f * 100);
+    softly.assertThat(context.measure(inputFile.key(), FunctionComplexityMetrics.COMPLEX_FUNCTIONS_LOC).value()).isEqualTo(6);
+    softly.assertThat(context.measure(inputFile.key(), FunctionComplexityMetrics.COMPLEX_FUNCTIONS_LOC_PERC).value()).isBetween(10.0, 11.0);
+
+    softly.assertThat(context.measure(inputFile.key(), FunctionSizeMetrics.BIG_FUNCTIONS).value()).isEqualTo(9);
+    softly.assertThat(context.measure(inputFile.key(), FunctionSizeMetrics.BIG_FUNCTIONS_PERC).value()).isEqualTo((double) 9 / f * 100);
+    softly.assertThat(context.measure(inputFile.key(), FunctionSizeMetrics.BIG_FUNCTIONS_LOC).value()).isEqualTo(44);
+    softly.assertThat(context.measure(inputFile.key(), FunctionSizeMetrics.BIG_FUNCTIONS_LOC_PERC).value()).isBetween(74.0, 75.0);
+    softly.assertAll();
   }
 
   @Test
-  public void testReplacingOfExtenalMacros() throws UnsupportedEncodingException, IOException {
+  public void testDocumentationSquidMetrics() throws IOException {
+    File baseDir = TestUtils.loadResource("/org/sonar/cxx/sensors/documentation-project");
+    DefaultInputFile inputFile0 = buildTestInputFile(baseDir, "documentation0.hh");
+    DefaultInputFile inputFile1 = buildTestInputFile(baseDir, "documentation1.hh");
+
+    SensorContextTester context = SensorContextTester.create(baseDir);
+    context.fileSystem().add(inputFile0);
+    context.fileSystem().add(inputFile1);
+    sensor.execute(context);
+
+    final Metric<Integer> API = language.<Integer>getMetric(CxxMetricsFactory.Key.PUBLIC_API_KEY);
+    final Metric<Integer> UNDOCUMENTED_API = language
+        .<Integer>getMetric(CxxMetricsFactory.Key.PUBLIC_UNDOCUMENTED_API_KEY);
+    final Metric<Double> DOCUMENTED_API_DENSITY = language
+        .<Double>getMetric(CxxMetricsFactory.Key.PUBLIC_DOCUMENTED_API_DENSITY_KEY);
+
+    SoftAssertions softly = new SoftAssertions();
+    softly.assertThat(context.measure(inputFile0.key(), API).value()).isEqualTo(8);
+    softly.assertThat(context.measure(inputFile0.key(), UNDOCUMENTED_API).value()).isEqualTo(2);
+    softly.assertThat(context.measure(inputFile0.key(), DOCUMENTED_API_DENSITY).value())
+        .isEqualTo((double) 6 / 8 * 100);
+
+    softly.assertThat(context.measure(inputFile1.key(), API).value()).isEqualTo(7);
+    softly.assertThat(context.measure(inputFile1.key(), UNDOCUMENTED_API).value()).isEqualTo(6);
+    softly.assertThat(context.measure(inputFile1.key(), DOCUMENTED_API_DENSITY).value())
+        .isEqualTo((double) 1 / 7 * 100);
+
+    final String moduleKey = context.module().key();
+    softly.assertThat(context.measure(moduleKey, API).value()).isEqualTo(8 + 7);
+    softly.assertThat(context.measure(moduleKey, UNDOCUMENTED_API).value()).isEqualTo(2 + 6);
+    softly.assertThat(context.measure(moduleKey, DOCUMENTED_API_DENSITY).value())
+        .isEqualTo((double) (6 + 1) / (7 + 8) * 100);
+    softly.assertAll();
+  }
+
+  @Test
+  public void testReplacingOfExtenalMacros() throws IOException {
     when(this.language.getStringLinesOption(CxxSquidSensor.DEFINES_KEY)).thenReturn(new String[]{"MACRO class A{};"});
     File baseDir = TestUtils.loadResource("/org/sonar/cxx/sensors/external-macro-project");
-    File target = new File(baseDir, "test.cc");
-
-    String content = new String(Files.readAllBytes(target.toPath()), "UTF-8");
-    DefaultInputFile inputFile = TestInputFileBuilder.create("ProjectKey", baseDir, target).setContents(content)
-      .setLanguage(language.getKey()).setType(InputFile.Type.MAIN).build();
+    DefaultInputFile inputFile = buildTestInputFile(baseDir, "test.cc");
 
     SensorContextTester context = SensorContextTester.create(baseDir);
     context.fileSystem().add(inputFile);
     sensor.execute(context);
 
-    assertThat(context.measure(inputFile.key(), CoreMetrics.FILES).value()).isEqualTo(1);
-    assertThat(context.measure(inputFile.key(), CoreMetrics.NCLOC).value()).isEqualTo(1);
-    assertThat(context.measure(inputFile.key(), CoreMetrics.STATEMENTS).value()).isEqualTo(0);
-    assertThat(context.measure(inputFile.key(), CoreMetrics.FUNCTIONS).value()).isEqualTo(0);
-    assertThat(context.measure(inputFile.key(), CoreMetrics.CLASSES).value()).isEqualTo(1);
+    SoftAssertions softly = new SoftAssertions();
+    softly.assertThat(context.measure(inputFile.key(), CoreMetrics.FILES).value()).isEqualTo(1);
+    softly.assertThat(context.measure(inputFile.key(), CoreMetrics.NCLOC).value()).isEqualTo(1);
+    softly.assertThat(context.measure(inputFile.key(), CoreMetrics.STATEMENTS).value()).isEqualTo(0);
+    softly.assertThat(context.measure(inputFile.key(), CoreMetrics.FUNCTIONS).value()).isEqualTo(0);
+    softly.assertThat(context.measure(inputFile.key(), CoreMetrics.CLASSES).value()).isEqualTo(1);
+    softly.assertAll();
   }
 
   @Test
-  public void testFindingIncludedFiles() throws UnsupportedEncodingException, IOException {
+  public void testFindingIncludedFiles() throws IOException {
     when(this.language.getStringArrayOption(CxxSquidSensor.INCLUDE_DIRECTORIES_KEY)).thenReturn(new String[]{"include"});
     File baseDir = TestUtils.loadResource("/org/sonar/cxx/sensors/include-directories-project");
-    File target = new File(baseDir, "src/main.cc");
-
-    String content = new String(Files.readAllBytes(target.toPath()), "UTF-8");
-    DefaultInputFile inputFile = TestInputFileBuilder.create("ProjectKey", baseDir, target).setContents(content)
-      .setLanguage(language.getKey()).setType(InputFile.Type.MAIN).build();
+    DefaultInputFile inputFile = buildTestInputFile(baseDir, "src/main.cc");
 
     SensorContextTester context = SensorContextTester.create(baseDir);
     context.fileSystem().add(inputFile);
     sensor.execute(context);
 
-    assertThat(context.measure(inputFile.key(), CoreMetrics.FILES).value()).isEqualTo(1);
-    assertThat(context.measure(inputFile.key(), CoreMetrics.NCLOC).value()).isEqualTo(9);
-    assertThat(context.measure(inputFile.key(), CoreMetrics.STATEMENTS).value()).isEqualTo(0);
-    assertThat(context.measure(inputFile.key(), CoreMetrics.FUNCTIONS).value()).isEqualTo(9);
-    assertThat(context.measure(inputFile.key(), CoreMetrics.CLASSES).value()).isEqualTo(0);
+    SoftAssertions softly = new SoftAssertions();
+    softly.assertThat(context.measure(inputFile.key(), CoreMetrics.FILES).value()).isEqualTo(1);
+    softly.assertThat(context.measure(inputFile.key(), CoreMetrics.NCLOC).value()).isEqualTo(9);
+    softly.assertThat(context.measure(inputFile.key(), CoreMetrics.STATEMENTS).value()).isEqualTo(0);
+    softly.assertThat(context.measure(inputFile.key(), CoreMetrics.FUNCTIONS).value()).isEqualTo(9);
+    softly.assertThat(context.measure(inputFile.key(), CoreMetrics.CLASSES).value()).isEqualTo(0);
+    softly.assertAll();
 
   }
 
   @Test
-  public void testForceIncludedFiles() throws UnsupportedEncodingException, IOException {
+  public void testForceIncludedFiles() throws IOException {
 
     when(this.language.getStringArrayOption(CxxSquidSensor.INCLUDE_DIRECTORIES_KEY)).thenReturn(new String[]{"include"});
     when(this.language.getStringArrayOption(CxxSquidSensor.FORCE_INCLUDE_FILES_KEY)).thenReturn(new String[]{"force1.hh", "subfolder/force2.hh"});
 
     File baseDir = TestUtils.loadResource("/org/sonar/cxx/sensors/force-include-project");
-    File target = new File(baseDir, "src/src1.cc");
-
-    String content = new String(Files.readAllBytes(target.toPath()), "UTF-8");
-    DefaultInputFile inputFile = TestInputFileBuilder.create("ProjectKey", baseDir, target).setContents(content)
-      .setLanguage(language.getKey()).setType(InputFile.Type.MAIN).build();
+    DefaultInputFile inputFile = buildTestInputFile(baseDir, "src/src1.cc");
 
     SensorContextTester context = SensorContextTester.create(baseDir);
     context.fileSystem().add(inputFile);
     sensor.execute(context);
 
     // These checks actually check the force include feature, since only if it works the metric values will be like follows
-    assertThat(context.measure(inputFile.key(), CoreMetrics.FILES).value()).isEqualTo(1);
-    assertThat(context.measure(inputFile.key(), CoreMetrics.NCLOC).value()).isEqualTo(1);
-    assertThat(context.measure(inputFile.key(), CoreMetrics.STATEMENTS).value()).isEqualTo(2);
-    assertThat(context.measure(inputFile.key(), CoreMetrics.FUNCTIONS).value()).isEqualTo(1);
-    assertThat(context.measure(inputFile.key(), CoreMetrics.CLASSES).value()).isEqualTo(0);
+    SoftAssertions softly = new SoftAssertions();
+    softly.assertThat(context.measure(inputFile.key(), CoreMetrics.FILES).value()).isEqualTo(1);
+    softly.assertThat(context.measure(inputFile.key(), CoreMetrics.NCLOC).value()).isEqualTo(1);
+    softly.assertThat(context.measure(inputFile.key(), CoreMetrics.STATEMENTS).value()).isEqualTo(2);
+    softly.assertThat(context.measure(inputFile.key(), CoreMetrics.FUNCTIONS).value()).isEqualTo(1);
+    softly.assertThat(context.measure(inputFile.key(), CoreMetrics.CLASSES).value()).isEqualTo(0);
+    softly.assertAll();
   }
 
   @Test
-  public void testBehaviourOnCircularIncludes() throws UnsupportedEncodingException, IOException {
+  public void testBehaviourOnCircularIncludes() throws IOException {
     // especially: when two files, both belonging to the set of
     // files to analyse, include each other, the preprocessor guards have to be disabled
     // and both have to be counted in terms of metrics
     File baseDir = TestUtils.loadResource("/org/sonar/cxx/sensors/circular-includes-project");
-    File target = new File(baseDir, "test1.hh");
-
-    String content = new String(Files.readAllBytes(target.toPath()), "UTF-8");
-    DefaultInputFile inputFile = TestInputFileBuilder.create("ProjectKey", baseDir, target).setContents(content)
-      .setLanguage(language.getKey()).setType(InputFile.Type.MAIN).build();
+    DefaultInputFile inputFile = buildTestInputFile(baseDir, "test1.hh");
 
     SensorContextTester context = SensorContextTester.create(baseDir);
     context.fileSystem().add(inputFile);

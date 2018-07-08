@@ -88,17 +88,31 @@ public class CxxCppCheckSensorTest {
 
     CxxCppCheckSensor sensor = new CxxCppCheckSensor(language);
     sensor.execute(context);
-    assertThat(context.allIssues()).hasSize(3);
+    SoftAssertions softly = new SoftAssertions();
+    softly.assertThat(context.allIssues()).hasSize(3);
 
-    // assert that all all issues were filed on the same component (on the module)
-    String moduleKey = context.module().key();
+    // assert that all all issues were filed on on the module
+    final String moduleKey = context.module().key();
     for ( Issue issue : context.allIssues() )
     {
-      assertThat(issue.primaryLocation().inputComponent().key()).isEqualTo(moduleKey);
+      softly.assertThat(issue.primaryLocation().inputComponent().key()).isEqualTo(moduleKey);
     }
+    softly.assertAll();
+  }
+
+  @Test
+  public void shouldReportProjectLevelMetricsV2() {
+    SensorContextTester context = SensorContextTester.create(fs.baseDir());
+
+    settings.setProperty(language.getPluginProperty(CxxCppCheckSensor.REPORT_PATH_KEY), "cppcheck-reports/cppcheck-result-projectlevelviolation-V2.xml");
+    context.setSettings(settings);
+
+    CxxCppCheckSensor sensor = new CxxCppCheckSensor(language);
+    sensor.execute(context);
 
     // assert that the module was annotated with a new measurement (metric) for
     // the total number of cppcheck issues
+    final String moduleKey = context.module().key();
     Measure<Integer> nrOfIssuesMetric = context.<Integer>measure(moduleKey,
         language.getMetric(CxxMetricsFactory.Key.CPPCHECK_SENSOR_ISSUES_KEY));
     assertThat(nrOfIssuesMetric.value()).isEqualTo(3);

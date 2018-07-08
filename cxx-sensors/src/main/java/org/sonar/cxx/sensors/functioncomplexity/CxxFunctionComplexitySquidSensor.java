@@ -21,7 +21,8 @@ package org.sonar.cxx.sensors.functioncomplexity;
 
 import com.sonar.sslr.api.AstNode;
 import com.sonar.sslr.api.Grammar;
-import java.util.Hashtable;
+
+import java.util.HashMap;
 import java.util.Map;
 
 import org.sonar.api.batch.fs.InputFile;
@@ -39,6 +40,17 @@ import org.sonar.squidbridge.api.SourceFunction;
 import org.sonar.squidbridge.checks.ChecksHelper;
 
 // TODO move from cxx-sensors to cxx-squid
+
+/**
+ *
+ * {@link SquidAstVisitor} that collects function complexity for each file and
+ * stores this measurements in the internal maps. These maps are used for later
+ * metrics calculation for entire module.
+ *
+ * ATTENTION! From performance reasons the maps are not synchronized. For
+ * parallel file processing this must be changed.
+ *
+ */
 public class CxxFunctionComplexitySquidSensor extends SquidAstVisitor<Grammar> implements CxxMetricsAggragator {
 
   private static final Logger LOG = Loggers.get(CxxFunctionComplexitySquidSensor.class);
@@ -55,9 +67,9 @@ public class CxxFunctionComplexitySquidSensor extends SquidAstVisitor<Grammar> i
 
   private int linesOfCodeOverThreshold;
 
-  private Map<SourceFile, FunctionCount> complexFunctionsPerFile = new Hashtable<>();
+  private Map<SourceFile, FunctionCount> complexFunctionsPerFile = new HashMap<>();
 
-  private Map<SourceFile, FunctionCount> locInComplexFunctionsPerFile = new Hashtable<>();
+  private Map<SourceFile, FunctionCount> locInComplexFunctionsPerFile = new HashMap<>();
 
   public CxxFunctionComplexitySquidSensor(CxxLanguage language){
     this.cyclomaticComplexityThreshold = language.getIntegerOption(FUNCTION_COMPLEXITY_THRESHOLD_KEY).orElse(10);
