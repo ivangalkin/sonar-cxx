@@ -165,49 +165,48 @@ public class CxxPublicApiVisitor<GRAMMAR extends Grammar> extends
   @Override
   public void publishMeasureForFile(InputFile inputFile, SourceFile squidFile, SensorContext context) {
     APICount c = apiCounterPerFile.get(squidFile);
-    if (c == null) {
-      c = new APICount(0, 0);
+    if (c != null) {
+      context.<Integer>newMeasure()
+        .forMetric(totalAPIMetric)
+        .on(inputFile)
+        .withValue(c.totalNr)
+        .save();
+
+      context.<Integer>newMeasure()
+        .forMetric(undocumentedAPIMetric)
+        .on(inputFile)
+        .withValue(c.undocumentedNr)
+        .save();
+
+      context.<Double>newMeasure()
+        .forMetric(documentedAPIDensityMetric)
+        .on(inputFile)
+        .withValue(c.getDensity())
+        .save();
     }
-
-    context.<Integer>newMeasure()
-      .forMetric(totalAPIMetric)
-      .on(inputFile)
-      .withValue(c.totalNr)
-      .save();
-
-    context.<Integer>newMeasure()
-      .forMetric(undocumentedAPIMetric)
-      .on(inputFile)
-      .withValue(c.undocumentedNr)
-      .save();
-
-    context.<Double>newMeasure()
-      .forMetric(documentedAPIDensityMetric)
-      .on(inputFile)
-      .withValue(c.getDensity())
-      .save();
-
   }
 
   @Override
   public void publishMeasureForProject(InputModule module, SensorContext context) {
-    context.<Integer>newMeasure()
-      .forMetric(totalAPIMetric)
-      .on(module)
-      .withValue(currentModuleCounter.totalNr)
-      .save();
+    if (!apiCounterPerFile.isEmpty()) {
+      context.<Integer>newMeasure()
+        .forMetric(totalAPIMetric)
+        .on(module)
+        .withValue(currentModuleCounter.totalNr)
+        .save();
 
-    context.<Integer>newMeasure()
-      .forMetric(undocumentedAPIMetric)
-      .on(module)
-      .withValue(currentModuleCounter.undocumentedNr)
-      .save();
+      context.<Integer>newMeasure()
+        .forMetric(undocumentedAPIMetric)
+        .on(module)
+        .withValue(currentModuleCounter.undocumentedNr)
+        .save();
 
-    context.<Double>newMeasure()
-      .forMetric(documentedAPIDensityMetric)
-      .on(module)
-      .withValue(currentModuleCounter.getDensity())
-      .save();
+      context.<Double>newMeasure()
+        .forMetric(documentedAPIDensityMetric)
+        .on(module)
+        .withValue(currentModuleCounter.getDensity())
+        .save();
+    }
   }
 }
 

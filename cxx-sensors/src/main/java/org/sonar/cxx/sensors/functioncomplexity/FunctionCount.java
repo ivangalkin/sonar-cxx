@@ -20,7 +20,33 @@
 package org.sonar.cxx.sensors.functioncomplexity;
 
 public class FunctionCount {
-  public int countOverThreshold;
 
+  public int countOverThreshold;
   public int countBelowThreshold;
+
+  public FunctionCount(int countOverThreshold, int countBelowThreshold) {
+    super();
+    this.countOverThreshold = countOverThreshold;
+    this.countBelowThreshold = countBelowThreshold;
+  }
+
+  public void add(FunctionCount other) {
+    countOverThreshold += other.countOverThreshold;
+    countBelowThreshold += other.countBelowThreshold;
+  }
+
+  public void reset() {
+    countOverThreshold = 0;
+    countBelowThreshold = 0;
+  }
+
+  public double getOverThresholdDensity() {
+    double total = (double) countOverThreshold + (double) countBelowThreshold;
+    if (total > 0) {
+      return (countOverThreshold / total * 100.0);
+    } else {
+      return 0;
+    }
+  }
+
 }

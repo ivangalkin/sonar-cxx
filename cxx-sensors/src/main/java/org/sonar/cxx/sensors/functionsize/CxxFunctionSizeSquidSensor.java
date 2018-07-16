@@ -24,9 +24,12 @@ import com.sonar.sslr.api.Grammar;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
+import org.sonar.api.batch.fs.InputComponent;
 import org.sonar.api.batch.fs.InputFile;
 import org.sonar.api.batch.fs.InputModule;
+import org.sonar.api.batch.measure.Metric;
 import org.sonar.api.batch.sensor.SensorContext;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
@@ -58,21 +61,19 @@ public class CxxFunctionSizeSquidSensor extends SquidAstVisitor<Grammar> impleme
 
   public static final String FUNCTION_SIZE_THRESHOLD_KEY = "funcsize.threshold";
 
-  private int functionsBelowThreshold = 0;
-
   private int sizeThreshold = 0;
 
-  private int functionsOverThreshold = 0;
+  private FunctionCount currentFile_bigFunctions;
+  private FunctionCount currentFile_locInBigFunction;
 
-  private int locBelowThreshold = 0;
+  private FunctionCount currentModule_bigFunctions;
+  private FunctionCount currentModule_locInBigFunctions;
 
-  private int locOverThreshold = 0;
+  private Map<SourceFile, FunctionCount> bigFunctionsPerFile;
 
-  private Map<SourceFile, FunctionCount> bigFunctionsPerFile = new HashMap<>();
+  private Map<SourceFile, FunctionCount> locInBigFunctionsPerFile;
 
-  private Map<SourceFile, FunctionCount> locInBigFunctionsPerFile = new HashMap<>();
-
-  public CxxFunctionSizeSquidSensor(CxxLanguage language){
+  public CxxFunctionSizeSquidSensor(CxxLanguage language) {
     this.sizeThreshold = language.getIntegerOption(FUNCTION_SIZE_THRESHOLD_KEY).orElse(20);
     if (LOG.isDebugEnabled()) {
       LOG.debug("Function size threshold: " + this.sizeThreshold);
@@ -82,156 +83,99 @@ public class CxxFunctionSizeSquidSensor extends SquidAstVisitor<Grammar> impleme
   @Override
   public void init() {
     subscribeTo(CxxGrammarImpl.functionBody);
+
+    currentFile_bigFunctions = new FunctionCount(0, 0);
+    currentFile_locInBigFunction = new FunctionCount(0, 0);
+
+    currentModule_bigFunctions = new FunctionCount(0, 0);
+    currentModule_locInBigFunctions = new FunctionCount(0, 0);
+
+    bigFunctionsPerFile = new HashMap<>();
+    locInBigFunctionsPerFile = new HashMap<>();
   }
 
   @Override
   public void leaveNode(AstNode node) {
     SourceFunction sourceFunction = (SourceFunction) getContext().peekSourceCode();
-    SourceFile sourceFile = sourceFunction.getAncestor(SourceFile.class);
 
-    int lineCount = sourceFunction.getInt(CxxMetric.LINES_OF_CODE_IN_FUNCTION_BODY);
+    final int lineCount = sourceFunction.getInt(CxxMetric.LINES_OF_CODE_IN_FUNCTION_BODY);
 
-    incrementFunctionByThresholdForProject(lineCount);
-    incrementFunctionByThresholdForFile(sourceFile, lineCount);
-  }
-
-  private void incrementFunctionByThresholdForFile(SourceFile sourceFile, int lineCount){
-    if (!bigFunctionsPerFile.containsKey(sourceFile)) {
-      bigFunctionsPerFile.put(sourceFile, new FunctionCount());
-    }
-
-    if (!locInBigFunctionsPerFile.containsKey(sourceFile)) {
-      locInBigFunctionsPerFile.put(sourceFile, new FunctionCount());
-    }
-
-    FunctionCount count = bigFunctionsPerFile.get(sourceFile);
-    FunctionCount locCount = locInBigFunctionsPerFile.get(sourceFile);
-    if (lineCount > this.sizeThreshold){
-      count.countOverThreshold++;
-      locCount.countOverThreshold += lineCount;
+    if (lineCount > this.sizeThreshold) {
+      currentFile_bigFunctions.countOverThreshold++;
+      currentFile_locInBigFunction.countOverThreshold += lineCount;
     } else {
-      count.countBelowThreshold++;
-      locCount.countBelowThreshold += lineCount;
+      currentFile_bigFunctions.countBelowThreshold++;
+      currentFile_locInBigFunction.countBelowThreshold += lineCount;
     }
   }
 
-  private void incrementFunctionByThresholdForProject(int lineCount){
-    if (lineCount > sizeThreshold) {
-      this.functionsOverThreshold++;
-      this.locOverThreshold += lineCount;
-    } else {
-      this.functionsBelowThreshold++;
-      this.locBelowThreshold += lineCount;
-    }
+  @Override
+  public void visitFile(AstNode astNode) {
+    currentFile_bigFunctions.reset();
+    currentFile_locInBigFunction.reset();
+
+    super.visitFile(astNode);
   }
 
+  @Override
+  public void leaveFile(AstNode astNode) {
+    super.leaveFile(astNode);
+
+    SourceFile sourceFile = (SourceFile) getContext().peekSourceCode();
+
+    currentModule_bigFunctions.add(currentFile_bigFunctions);
+    currentModule_locInBigFunctions.add(currentFile_locInBigFunction);
+
+    bigFunctionsPerFile.put(sourceFile,
+        new FunctionCount(currentFile_bigFunctions.countOverThreshold, currentFile_bigFunctions.countBelowThreshold));
+    locInBigFunctionsPerFile.put(sourceFile, new FunctionCount(currentFile_locInBigFunction.countOverThreshold,
+        currentFile_locInBigFunction.countBelowThreshold));
+  }
 
   @Override
   public SquidAstVisitor<Grammar> getVisitor() {
     return this;
   }
 
+  private void publishMeasure(SensorContext context, FunctionCount count, InputComponent component,
+      Optional<Metric<Integer>> totalMetric, Metric<Integer> overThresholdMetric,
+      Metric<Double> overThresholdDensityMetric) {
+
+    if (totalMetric.isPresent()) {
+      context.<Integer>newMeasure().forMetric(totalMetric.get()).on(component)
+          .withValue(count.countOverThreshold + count.countBelowThreshold).save();
+    }
+
+    context.<Integer>newMeasure().forMetric(overThresholdMetric).on(component).withValue(count.countOverThreshold)
+        .save();
+
+    context.<Double>newMeasure().forMetric(overThresholdDensityMetric).on(component)
+        .withValue(count.getOverThresholdDensity()).save();
+  }
+
   @Override
   public void publishMeasureForFile(InputFile inputFile, SourceFile squidFile, SensorContext context) {
-    publishBigFunctionMetrics(inputFile, squidFile, context);
-    publishLocInBigFunctionMetrics(inputFile, squidFile, context);
+    FunctionCount bigFunctions = bigFunctionsPerFile.get(squidFile);
+    if (bigFunctions != null) {
+      publishMeasure(context, bigFunctions, inputFile, Optional.empty(), FunctionSizeMetrics.BIG_FUNCTIONS,
+          FunctionSizeMetrics.BIG_FUNCTIONS_PERC);
+    }
+
+    FunctionCount locInBigFunctions = locInBigFunctionsPerFile.get(squidFile);
+    if (locInBigFunctions != null) {
+      publishMeasure(context, locInBigFunctions, inputFile, Optional.of(FunctionSizeMetrics.LOC_IN_FUNCTIONS),
+          FunctionSizeMetrics.BIG_FUNCTIONS_LOC, FunctionSizeMetrics.BIG_FUNCTIONS_LOC_PERC);
+    }
   }
 
   @Override
   public void publishMeasureForProject(InputModule module, SensorContext context) {
-    publishBigFunctionCountForProject(module, context);
-    publishLocInBigFunctionForProject(module, context);
-  }
-
-  private void publishBigFunctionCountForProject(InputModule module, SensorContext context){
-    context.<Integer>newMeasure()
-      .forMetric(FunctionSizeMetrics.BIG_FUNCTIONS)
-      .on(module)
-      .withValue(functionsOverThreshold)
-      .save();
-
-    context.<Double>newMeasure()
-      .forMetric(FunctionSizeMetrics.BIG_FUNCTIONS_PERC)
-      .on(module)
-      .withValue(calculatePercentual(functionsOverThreshold, functionsBelowThreshold))
-      .save();
-  }
-
-  private void publishLocInBigFunctionForProject(InputModule module, SensorContext context){
-    context.<Integer>newMeasure()
-      .forMetric(FunctionSizeMetrics.LOC_IN_FUNCTIONS)
-      .on(module)
-      .withValue(locOverThreshold + locBelowThreshold)
-      .save();
-
-    context.<Integer>newMeasure()
-      .forMetric(FunctionSizeMetrics.BIG_FUNCTIONS_LOC)
-      .on(module)
-      .withValue(locOverThreshold)
-      .save();
-
-    context.<Double>newMeasure()
-      .forMetric(FunctionSizeMetrics.BIG_FUNCTIONS_LOC_PERC)
-      .on(module)
-      .withValue(calculatePercentual(locOverThreshold, locBelowThreshold))
-      .save();
-  }
-
-  private static double calculatePercentual(int overThreshold, int belowThreshold){
-    double total = (double)overThreshold + (double)belowThreshold;
-    if (total > 0) {
-      return (overThreshold / total * 100.0);
-    } else {
-      return 0;
+    if (!bigFunctionsPerFile.isEmpty() && !locInBigFunctionsPerFile.isEmpty()) {
+      publishMeasure(context, currentModule_bigFunctions, module, Optional.empty(), FunctionSizeMetrics.BIG_FUNCTIONS,
+          FunctionSizeMetrics.BIG_FUNCTIONS_PERC);
+      publishMeasure(context, currentModule_locInBigFunctions, module,
+          Optional.of(FunctionSizeMetrics.LOC_IN_FUNCTIONS), FunctionSizeMetrics.BIG_FUNCTIONS_LOC,
+          FunctionSizeMetrics.BIG_FUNCTIONS_LOC_PERC);
     }
   }
-
-  private void publishBigFunctionMetrics(InputFile inputFile, SourceFile squidFile, SensorContext context) {
-    FunctionCount c = bigFunctionsPerFile.get(squidFile);
-    if (c == null){
-      c = new FunctionCount();
-      c.countBelowThreshold = 0;
-      c.countOverThreshold = 0;
-    }
-
-    context.<Integer>newMeasure()
-      .forMetric(FunctionSizeMetrics.BIG_FUNCTIONS)
-      .on(inputFile)
-      .withValue(c.countOverThreshold)
-      .save();
-
-    context.<Double>newMeasure()
-      .forMetric(FunctionSizeMetrics.BIG_FUNCTIONS_PERC)
-      .on(inputFile)
-      .withValue(calculatePercentual(c.countOverThreshold, c.countBelowThreshold))
-      .save();
-  }
-
-  private void publishLocInBigFunctionMetrics(InputFile inputFile, SourceFile squidFile, SensorContext context) {
-    FunctionCount c = locInBigFunctionsPerFile.get(squidFile);
-    if (c == null) {
-      c = new FunctionCount();
-      c.countBelowThreshold = 0;
-      c.countOverThreshold = 0;
-    }
-
-    context.<Integer>newMeasure()
-      .forMetric(FunctionSizeMetrics.LOC_IN_FUNCTIONS)
-      .on(inputFile)
-      .withValue(c.countOverThreshold + c.countBelowThreshold)
-      .save();
-
-    context.<Integer>newMeasure()
-      .forMetric(FunctionSizeMetrics.BIG_FUNCTIONS_LOC)
-      .on(inputFile)
-      .withValue(c.countOverThreshold)
-      .save();
-
-    context.<Double>newMeasure()
-      .forMetric(FunctionSizeMetrics.BIG_FUNCTIONS_LOC_PERC)
-      .on(inputFile)
-      .withValue(calculatePercentual(c.countOverThreshold, c.countBelowThreshold))
-      .save();
-  }
-
 }

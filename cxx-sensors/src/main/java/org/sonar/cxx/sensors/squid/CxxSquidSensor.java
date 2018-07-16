@@ -218,6 +218,11 @@ public class CxxSquidSensor implements Sensor {
   }
 
   private void save(Collection<SourceCode> squidSourceFiles, SensorContext context) {
+    if (squidSourceFiles.isEmpty())
+    {
+      return;
+    }
+
     int violationsCount = 0;
 
     for (SourceCode squidSourceFile : squidSourceFiles) {

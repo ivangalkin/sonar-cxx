@@ -116,11 +116,14 @@ public abstract class CxxReportSensor implements Sensor {
             .withValue(entry.getValue())
             .save();
         }
-        context.<Integer>newMeasure()
-          .forMetric(metric)
-          .on(context.module())
-          .withValue(violationsPerModuleCount)
-          .save();
+
+        if ( violationsPerModuleCount != 0 ) {
+          context.<Integer>newMeasure()
+            .forMetric(metric)
+            .on(context.module())
+            .withValue(violationsPerModuleCount)
+            .save();
+        }
       }
     } catch (Exception e) {
       String msg = new StringBuilder()
