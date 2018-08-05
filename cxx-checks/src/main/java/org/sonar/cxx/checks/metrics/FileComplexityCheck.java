@@ -41,6 +41,8 @@ import org.sonar.squidbridge.measures.MetricDef;
   effortToFixDescription = "per complexity point above the threshold")
 public class FileComplexityCheck extends AbstractFileComplexityCheck<Grammar> {
 
+  // TODO MultiLineSquidCheck<Grammar>
+
   private static final int DEFAULT_MAX = 200;
 
   @RuleProperty(

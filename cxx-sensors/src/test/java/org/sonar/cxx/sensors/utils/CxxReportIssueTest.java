@@ -23,6 +23,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
 import org.junit.Test;
+import org.sonar.cxx.utils.CxxReportIssue;
+import org.sonar.cxx.utils.CxxReportLocation;
 
 public class CxxReportIssueTest {
 

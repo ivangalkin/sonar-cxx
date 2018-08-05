@@ -21,29 +21,42 @@ package org.sonar.cxx.checks.metrics;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.util.Set;
 
+import org.assertj.core.api.SoftAssertions;
 import org.junit.Test;
 import org.sonar.cxx.CxxAstScanner;
 import org.sonar.cxx.checks.CxxFileTester;
 import org.sonar.cxx.checks.CxxFileTesterHelper;
+import org.sonar.cxx.utils.CxxReportIssue;
+import org.sonar.cxx.utils.MultiLineSquidCheck;
 import org.sonar.squidbridge.api.SourceFile;
-import org.sonar.squidbridge.checks.CheckMessagesVerifier;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class FunctionCognitiveComplexityCheckTest {
 
   @Test
-  @SuppressWarnings("squid:S2699") // ... verify contains the assertion
   public void check() throws UnsupportedEncodingException, IOException {
     FunctionCognitiveComplexityCheck check = new FunctionCognitiveComplexityCheck();
     check.setMax(18);
-    CxxFileTester tester = CxxFileTesterHelper.CreateCxxFileTester("src/test/resources/checks/FunctionCognitiveComplexity.cc", ".");
-    SourceFile file = CxxAstScanner.scanSingleFile(tester.cxxFile, tester.sensorContext, CxxFileTesterHelper.mockCxxLanguage(), check);
+    CxxFileTester tester = CxxFileTesterHelper
+        .CreateCxxFileTester("src/test/resources/checks/FunctionCognitiveComplexity.cc", ".");
+    SourceFile file = CxxAstScanner.scanSingleFile(tester.cxxFile, tester.sensorContext,
+        CxxFileTesterHelper.mockCxxLanguage(), check);
 
-    CheckMessagesVerifier.verify(file.getCheckMessages())
-      .next().atLine(13)
-      .next().atLine(33)
-      .next().atLine(51)
-      .next().atLine(72);
+    Set<CxxReportIssue> issues = MultiLineSquidCheck.getMultilineCheckMessages(file);
+    assertThat(issues).isNotNull();
+    SoftAssertions softly = new SoftAssertions();
+    softly.assertThat(issues).hasSize(4);
+    softly.assertThat(issues).contains(new CxxReportIssue("FunctionCognitiveComplexity", null, "13",
+        "The Cognitive Complexity of this function is 20 which is greater than 18 authorized."));
+    softly.assertThat(issues).contains(new CxxReportIssue("FunctionCognitiveComplexity", null, "33",
+        "The Cognitive Complexity of this function is 20 which is greater than 18 authorized."));
+    softly.assertThat(issues).contains(new CxxReportIssue("FunctionCognitiveComplexity", null, "51",
+        "The Cognitive Complexity of this function is 20 which is greater than 18 authorized."));
+    softly.assertThat(issues).contains(new CxxReportIssue("FunctionCognitiveComplexity", null, "72",
+        "The Cognitive Complexity of this function is 20 which is greater than 18 authorized."));
+    softly.assertAll();
   }
 
 }

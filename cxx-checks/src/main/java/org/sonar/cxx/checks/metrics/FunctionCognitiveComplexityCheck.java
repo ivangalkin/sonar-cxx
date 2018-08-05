@@ -27,6 +27,8 @@ import org.sonar.check.RuleProperty;
 import org.sonar.cxx.api.CxxMetric;
 import org.sonar.cxx.parser.CxxGrammarImpl;
 import org.sonar.cxx.tag.Tag;
+import org.sonar.cxx.utils.CxxReportIssue;
+import org.sonar.cxx.utils.MultiLineSquidCheck;
 import org.sonar.squidbridge.annotations.ActivatedByDefault;
 import org.sonar.squidbridge.annotations.SqaleLinearWithOffsetRemediation;
 import org.sonar.squidbridge.api.SourceFunction;
@@ -43,7 +45,7 @@ import org.sonar.squidbridge.checks.SquidCheck;
   coeff = "1min",
   offset = "5min",
   effortToFixDescription = "per complexity point above the threshold")
-public class FunctionCognitiveComplexityCheck extends SquidCheck<Grammar> {
+public class FunctionCognitiveComplexityCheck extends MultiLineSquidCheck<Grammar> {
 
   private static final int DEFAULT_MAX = 15;
 
@@ -63,12 +65,13 @@ public class FunctionCognitiveComplexityCheck extends SquidCheck<Grammar> {
     SourceFunction sourceFunction = (SourceFunction) getContext().peekSourceCode();
     int complexity = ChecksHelper.getRecursiveMeasureInt(sourceFunction, CxxMetric.COGNITIVE_COMPLEXITY);
     if (complexity > max) {
-      getContext().createLineViolation(this,
-        "The Cognitive Complexity of this function is {0,number,integer} which is greater than "
-          + "{1,number,integer} authorized.",
-        node,
-        complexity,
-        max);
+
+      final StringBuffer msg = new StringBuffer();
+      msg.append("The Cognitive Complexity of this function is ").append(complexity).append(" which is greater than ")
+          .append(max).append(" authorized.");
+      final String line = Integer.valueOf(node.getToken().getLine()).toString();
+      final CxxReportIssue issue = new CxxReportIssue(getRuleKey(), null, line, msg.toString());
+      saveMultilineCheckMessage(issue);
     }
   }
 

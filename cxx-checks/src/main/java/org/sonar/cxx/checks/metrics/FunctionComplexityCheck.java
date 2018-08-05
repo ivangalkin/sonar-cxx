@@ -32,6 +32,7 @@ import com.sonar.sslr.api.Grammar;
 import org.sonar.squidbridge.annotations.ActivatedByDefault;
 import org.sonar.squidbridge.annotations.SqaleLinearWithOffsetRemediation;
 import org.sonar.cxx.tag.Tag;
+import org.sonar.cxx.utils.MultiLineSquidCheck;
 
 @Rule(
   key = "FunctionComplexity",
@@ -44,6 +45,8 @@ import org.sonar.cxx.tag.Tag;
   offset = "10min",
   effortToFixDescription = "per complexity point above the threshold")
 public class FunctionComplexityCheck extends SquidCheck<Grammar> {
+
+  // TODO MultiLineSquidCheck<Grammar>
 
   private static final int DEFAULT_MAX = 10;
 

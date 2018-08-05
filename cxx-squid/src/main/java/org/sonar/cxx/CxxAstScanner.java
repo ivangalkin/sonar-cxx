@@ -231,11 +231,13 @@ public final class CxxAstScanner {
       CxxPunctuator.QUEST
     };
 
+    // TODO
     builder.withSquidAstVisitor(ComplexityVisitor.<Grammar>builder()
       .setMetricDef(CxxMetric.COMPLEXITY)
       .subscribeTo(complexityAstNodeType)
       .build());
 
+    // TODO
     builder.withSquidAstVisitor(CxxCognitiveComplexityVisitor.<Grammar>builder()
       .setMetricDef(CxxMetric.COGNITIVE_COMPLEXITY)
       .subscribeTo(CxxGrammarImpl.functionDefinition)
