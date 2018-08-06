@@ -19,6 +19,8 @@
  */
 package org.sonar.cxx.checks.metrics;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.Set;
@@ -29,9 +31,9 @@ import org.sonar.cxx.CxxAstScanner;
 import org.sonar.cxx.checks.CxxFileTester;
 import org.sonar.cxx.checks.CxxFileTesterHelper;
 import org.sonar.cxx.utils.CxxReportIssue;
+import org.sonar.cxx.utils.CxxReportLocation;
 import org.sonar.cxx.utils.MultiLineSquidCheck;
 import org.sonar.squidbridge.api.SourceFile;
-import static org.assertj.core.api.Assertions.assertThat;
 
 public class FunctionCognitiveComplexityCheckTest {
 
@@ -48,14 +50,32 @@ public class FunctionCognitiveComplexityCheckTest {
     assertThat(issues).isNotNull();
     SoftAssertions softly = new SoftAssertions();
     softly.assertThat(issues).hasSize(4);
-    softly.assertThat(issues).contains(new CxxReportIssue("FunctionCognitiveComplexity", null, "13",
+    softly.assertThat(issues).allSatisfy(issue -> "FunctionCognitiveComplexity".equals(issue.getRuleId()));
+
+    CxxReportIssue issue0 = issues.stream().filter(issue -> issue.getLocations().get(0).getLine().equals("13"))
+        .findFirst().orElseThrow(() -> new AssertionError("No issue at line 13"));
+    softly.assertThat(issue0.getLocations()).containsOnly(
+        new CxxReportLocation(null, "13",
         "The Cognitive Complexity of this function is 20 which is greater than 18 authorized."));
-    softly.assertThat(issues).contains(new CxxReportIssue("FunctionCognitiveComplexity", null, "33",
+
+    CxxReportIssue issue1 = issues.stream().filter(issue -> issue.getLocations().get(0).getLine().equals("33"))
+        .findFirst().orElseThrow(() -> new AssertionError("No issue at line 33"));
+    softly.assertThat(issue1.getLocations()).containsOnly(
+        new CxxReportLocation(null, "33",
         "The Cognitive Complexity of this function is 20 which is greater than 18 authorized."));
-    softly.assertThat(issues).contains(new CxxReportIssue("FunctionCognitiveComplexity", null, "51",
+
+    CxxReportIssue issue2 = issues.stream().filter(issue -> issue.getLocations().get(0).getLine().equals("51"))
+        .findFirst().orElseThrow(() -> new AssertionError("No issue at line 51"));
+    softly.assertThat(issue2.getLocations()).containsOnly(
+        new CxxReportLocation(null, "51",
         "The Cognitive Complexity of this function is 20 which is greater than 18 authorized."));
-    softly.assertThat(issues).contains(new CxxReportIssue("FunctionCognitiveComplexity", null, "72",
+
+    CxxReportIssue issue3 = issues.stream().filter(issue -> issue.getLocations().get(0).getLine().equals("72"))
+        .findFirst().orElseThrow(() -> new AssertionError("No issue at line 72"));
+    softly.assertThat(issue3.getLocations()).containsOnly(
+        new CxxReportLocation(null, "72",
         "The Cognitive Complexity of this function is 20 which is greater than 18 authorized."));
+
     softly.assertAll();
   }
 

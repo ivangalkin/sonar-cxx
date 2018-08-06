@@ -105,4 +105,8 @@ public class MultiLineSquidCheck<G extends Grammar> extends SquidCheck<G> {
   private static void setMultilineCheckMessages(SourceFile sourceFile, Set<CxxReportIssue> messages) {
     sourceFile.addData(DataKey.MULTI_LINE_ISSUES, messages);
   }
+
+  public static void eraseMultilineCheckMessages(SourceFile sourceFile) {
+    setMultilineCheckMessages(sourceFile, null);
+  }
 }

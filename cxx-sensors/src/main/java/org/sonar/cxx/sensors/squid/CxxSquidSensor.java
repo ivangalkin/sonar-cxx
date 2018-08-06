@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 
 import javax.annotation.Nullable;
 
@@ -301,17 +300,14 @@ public class CxxSquidSensor implements Sensor {
       }
     }
 
-
-
-
-    if (MultiLineSquidCheck.hasMultilineCheckMessages(squidFile) ) {
+    if (MultiLineSquidCheck.hasMultilineCheckMessages(squidFile)) {
       for (CxxReportIssue issue : MultiLineSquidCheck.getMultilineCheckMessages(squidFile)) {
         final NewIssue newIssue = sensorContext.newIssue()
             .forRule(RuleKey.of(language.getRepositoryKey(), issue.getRuleId()));
         int locationNr = 0;
         for (CxxReportLocation location : issue.getLocations()) {
           final Integer line = Integer.valueOf(location.getLine());
-          NewIssueLocation newIssueLocation = newIssue.newLocation().on(inputFile).at(inputFile.selectLine(line))
+          final NewIssueLocation newIssueLocation = newIssue.newLocation().on(inputFile).at(inputFile.selectLine(line))
               .message(location.getInfo());
           if (locationNr == 0) {
             newIssue.at(newIssueLocation);
@@ -323,6 +319,7 @@ public class CxxSquidSensor implements Sensor {
         newIssue.save();
         ++violationsCount;
       }
+      MultiLineSquidCheck.eraseMultilineCheckMessages(squidFile);
     }
 
     return violationsCount;
