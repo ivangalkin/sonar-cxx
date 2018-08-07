@@ -75,7 +75,7 @@ public abstract class CxxCyclomaticComplexityCheck<G extends Grammar> extends Mu
       } else if (type == CxxKeyword.CASE || type == CxxKeyword.DEFAULT) {
         return "+1 (switch label)";
       } else if (type == CxxPunctuator.AND || type == CxxPunctuator.OR) {
-        return "+1 (comparison operator)";
+        return "+1 (logical operator)";
       } else if (type == CxxPunctuator.QUEST) {
         return "+1 (conditional operator)";
       }

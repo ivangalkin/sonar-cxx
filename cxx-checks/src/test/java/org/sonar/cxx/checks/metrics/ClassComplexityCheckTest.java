@@ -81,8 +81,8 @@ public class ClassComplexityCheckTest {
         new CxxReportLocation(null, "57", "+1 (function definition)"),
         new CxxReportLocation(null, "58", "+1 (for loop)"),
         new CxxReportLocation(null, "59", "+1 (if statement)"),
-        new CxxReportLocation(null, "59", "+1 (comparison operator)"),
-        new CxxReportLocation(null, "59", "+1 (comparison operator)"),
+        new CxxReportLocation(null, "59", "+1 (logical operator)"),
+        new CxxReportLocation(null, "59", "+1 (logical operator)"),
         new CxxReportLocation(null, "65", "+1 (function definition)")
     );
 
@@ -98,8 +98,8 @@ public class ClassComplexityCheckTest {
         new CxxReportLocation(null, "57", "+1 (function definition)"),
         new CxxReportLocation(null, "58", "+1 (for loop)"),
         new CxxReportLocation(null, "59", "+1 (if statement)"),
-        new CxxReportLocation(null, "59", "+1 (comparison operator)"),
-        new CxxReportLocation(null, "59", "+1 (comparison operator)"));
+        new CxxReportLocation(null, "59", "+1 (logical operator)"),
+        new CxxReportLocation(null, "59", "+1 (logical operator)"));
 
     softly.assertAll();
 

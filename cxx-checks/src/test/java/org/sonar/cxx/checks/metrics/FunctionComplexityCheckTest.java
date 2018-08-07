@@ -47,7 +47,7 @@ public class FunctionComplexityCheckTest {
     Set<CxxReportIssue> issues = MultiLineSquidCheck.getMultilineCheckMessages(file);
     assertThat(issues).isNotNull();
     SoftAssertions softly = new SoftAssertions();
-    softly.assertThat(issues).hasSize(4);
+    softly.assertThat(issues).hasSize(5);
     softly.assertThat(issues).allSatisfy(issue -> "FunctionComplexity".equals(issue.getRuleId()));
 
     CxxReportIssue issue0 = issues.stream().filter(issue -> issue.getLocations().get(0).getLine().equals("13"))
@@ -102,6 +102,24 @@ public class FunctionComplexityCheckTest {
         new CxxReportLocation(null, "81", "+1 (conditional operator)"),
         new CxxReportLocation(null, "83", "+1 (conditional operator)"));
 
+    CxxReportIssue issue4 = issues.stream().filter(issue -> issue.getLocations().get(0).getLine().equals("89"))
+        .findFirst().orElseThrow(() -> new AssertionError("No issue at line 89"));
+    softly.assertThat(issue4.getLocations()).containsOnly(
+        new CxxReportLocation(null, "89",
+            "The Cyclomatic Complexity of this function is 13 which is greater than 5 authorized."),
+        new CxxReportLocation(null, "91", "+1 (if statement)"),
+        new CxxReportLocation(null, "91", "+1 (logical operator)"),
+        new CxxReportLocation(null, "91", "+1 (logical operator)"),
+        new CxxReportLocation(null, "94", "+1 (catch-clause)"),
+        new CxxReportLocation(null, "96", "+1 (catch-clause)"),
+        new CxxReportLocation(null, "98", "+1 (catch-clause)"),
+        new CxxReportLocation(null, "100", "+1 (catch-clause)"),
+        new CxxReportLocation(null, "102", "+1 (catch-clause)"),
+        new CxxReportLocation(null, "104", "+1 (catch-clause)"),
+        new CxxReportLocation(null, "106", "+1 (catch-clause)"),
+        new CxxReportLocation(null, "107", "+1 (while loop)"),
+        new CxxReportLocation(null, "108", "+1 (conditional operator)"),
+        new CxxReportLocation(null, "110", "+1 (conditional operator)"));
     softly.assertAll();
   }
 

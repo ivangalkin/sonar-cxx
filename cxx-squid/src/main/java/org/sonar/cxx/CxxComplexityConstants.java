@@ -31,6 +31,15 @@ public class CxxComplexityConstants {
     /* utility class */
   }
 
+  /**
+   * From original SonarQube documentation: <blockquote>The complexity is
+   * measured by the number of if, while, do, for, ?:, catch, switch, case
+   * statements, and operators && and || (plus one) in the body of a
+   * constructor, method, static initializer, or instance initializer.
+   * </blockquote>
+   *
+   * @see CyclomaticComplexityExclusionAstNodeTypes
+   */
   public static final AstNodeType[] CyclomaticComplexityAstNodeTypes = new AstNodeType[] {
       CxxGrammarImpl.functionDefinition,
       CxxKeyword.IF,
