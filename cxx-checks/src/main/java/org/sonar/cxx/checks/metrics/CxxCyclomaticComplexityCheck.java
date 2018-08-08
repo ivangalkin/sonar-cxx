@@ -29,7 +29,7 @@ import org.sonar.cxx.api.CxxKeyword;
 import org.sonar.cxx.api.CxxPunctuator;
 import org.sonar.cxx.parser.CxxGrammarImpl;
 import org.sonar.cxx.utils.CxxReportIssue;
-import org.sonar.cxx.utils.MultiLineSquidCheck;
+import org.sonar.cxx.visitors.MultiLocatitionSquidCheck;
 
 import com.sonar.sslr.api.AstNode;
 import com.sonar.sslr.api.AstNodeType;
@@ -42,7 +42,7 @@ import com.sonar.sslr.api.Grammar;
  *
  * @param <G>
  */
-public abstract class CxxCyclomaticComplexityCheck<G extends Grammar> extends MultiLineSquidCheck<G> {
+public abstract class CxxCyclomaticComplexityCheck<G extends Grammar> extends MultiLocatitionSquidCheck<G> {
 
   /**
    * Structure, that tracks all nodes, which increase the code complexity
@@ -205,7 +205,7 @@ public abstract class CxxCyclomaticComplexityCheck<G extends Grammar> extends Mu
       for (ComplexitySource source : scope.getSources()) {
         issue.addLocation(null, source.getLine(), source.getExplanation());
       }
-      saveMultilineCheckMessage(issue);
+      createMultiLocationViolation(issue);
     }
   }
 }

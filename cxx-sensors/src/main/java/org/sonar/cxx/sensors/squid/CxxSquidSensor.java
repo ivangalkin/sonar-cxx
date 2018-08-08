@@ -55,7 +55,7 @@ import org.sonar.cxx.sensors.visitors.CxxFileLinesVisitor;
 import org.sonar.cxx.sensors.visitors.CxxHighlighterVisitor;
 import org.sonar.cxx.utils.CxxReportIssue;
 import org.sonar.cxx.utils.CxxReportLocation;
-import org.sonar.cxx.utils.MultiLineSquidCheck;
+import org.sonar.cxx.visitors.MultiLocatitionSquidCheck;
 import org.sonar.squidbridge.AstScanner;
 import org.sonar.squidbridge.SquidAstVisitor;
 import org.sonar.squidbridge.api.CheckMessage;
@@ -300,8 +300,8 @@ public class CxxSquidSensor implements Sensor {
       }
     }
 
-    if (MultiLineSquidCheck.hasMultilineCheckMessages(squidFile)) {
-      for (CxxReportIssue issue : MultiLineSquidCheck.getMultilineCheckMessages(squidFile)) {
+    if (MultiLocatitionSquidCheck.hasMultiLocationCheckMessages(squidFile)) {
+      for (CxxReportIssue issue : MultiLocatitionSquidCheck.getMultiLocationCheckMessages(squidFile)) {
         final NewIssue newIssue = sensorContext.newIssue()
             .forRule(RuleKey.of(language.getRepositoryKey(), issue.getRuleId()));
         int locationNr = 0;
@@ -319,7 +319,7 @@ public class CxxSquidSensor implements Sensor {
         newIssue.save();
         ++violationsCount;
       }
-      MultiLineSquidCheck.eraseMultilineCheckMessages(squidFile);
+      MultiLocatitionSquidCheck.eraseMultilineCheckMessages(squidFile);
     }
 
     return violationsCount;

@@ -32,7 +32,7 @@ import org.sonar.cxx.checks.CxxFileTester;
 import org.sonar.cxx.checks.CxxFileTesterHelper;
 import org.sonar.cxx.utils.CxxReportIssue;
 import org.sonar.cxx.utils.CxxReportLocation;
-import org.sonar.cxx.utils.MultiLineSquidCheck;
+import org.sonar.cxx.visitors.MultiLocatitionSquidCheck;
 import org.sonar.squidbridge.api.SourceFile;
 
 public class FunctionCognitiveComplexityCheckTest {
@@ -46,7 +46,7 @@ public class FunctionCognitiveComplexityCheckTest {
     SourceFile file = CxxAstScanner.scanSingleFile(tester.cxxFile, tester.sensorContext,
         CxxFileTesterHelper.mockCxxLanguage(), check);
 
-    Set<CxxReportIssue> issues = MultiLineSquidCheck.getMultilineCheckMessages(file);
+    Set<CxxReportIssue> issues = MultiLocatitionSquidCheck.getMultiLocationCheckMessages(file);
     assertThat(issues).isNotNull();
     SoftAssertions softly = new SoftAssertions();
     softly.assertThat(issues).hasSize(4);

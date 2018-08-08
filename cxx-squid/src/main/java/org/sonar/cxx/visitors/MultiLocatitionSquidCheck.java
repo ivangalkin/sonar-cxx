@@ -17,12 +17,13 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-package org.sonar.cxx.utils;
+package org.sonar.cxx.visitors;
 
 import java.util.HashSet;
 import java.util.Set;
 
 import org.sonar.api.utils.AnnotationUtils;
+import org.sonar.cxx.utils.CxxReportIssue;
 import org.sonar.squidbridge.SquidAstVisitorContext;
 import org.sonar.squidbridge.api.SourceFile;
 import org.sonar.squidbridge.checks.SquidCheck;
@@ -31,14 +32,22 @@ import org.sonar.squidbridge.measures.MetricDef;
 
 import com.sonar.sslr.api.Grammar;
 
-public class MultiLineSquidCheck<G extends Grammar> extends SquidCheck<G> {
+/**
+ * Derivation of {@link SquidCheck}, which can create issues with multiple
+ * locations (1 primary location, arbitrary number of secondary locations
+ *
+ * See also org.sonar.squidbridge.SquidAstVisitorContext.createLineViolation
+ *
+ * @param <G>
+ */
+public class MultiLocatitionSquidCheck<G extends Grammar> extends SquidCheck<G> {
 
-  static enum DataKey implements MetricDef {
-    MULTI_LINE_ISSUES;
+  private static enum DataKey implements MetricDef {
+    FILE_VIOLATIONS_WITH_MULTIPLE_LOCATIONS;
 
     @Override
     public String getName() {
-      return MULTI_LINE_ISSUES.getName();
+      return FILE_VIOLATIONS_WITH_MULTIPLE_LOCATIONS.getName();
     }
 
     @Override
@@ -62,6 +71,10 @@ public class MultiLineSquidCheck<G extends Grammar> extends SquidCheck<G> {
     }
   }
 
+  /**
+   * @return the rule key of this check visitor
+   * @see org.sonar.check.Rule
+   */
   protected String getRuleKey() {
     org.sonar.check.Rule ruleAnnotation = AnnotationUtils.getAnnotation(this, org.sonar.check.Rule.class);
     if (ruleAnnotation != null && ruleAnnotation.key() != null) {
@@ -82,31 +95,44 @@ public class MultiLineSquidCheck<G extends Grammar> extends SquidCheck<G> {
     }
   }
 
-  protected void saveMultilineCheckMessage(CxxReportIssue message) {
+  /**
+   * Add the given message to the current SourceFile object
+   * @see SquidAstVisitorContext<G extends Grammar>.createLineViolation() for simple violations
+   */
+  protected void createMultiLocationViolation(CxxReportIssue message) {
     SourceFile sourceFile = getSourceFile();
-    Set<CxxReportIssue> messages = getMultilineCheckMessages(sourceFile);
+    Set<CxxReportIssue> messages = getMultiLocationCheckMessages(sourceFile);
     if (messages == null) {
       messages = new HashSet<>();
     }
     messages.add(message);
-    setMultilineCheckMessages(sourceFile, messages);
+    setMultiLocationViolation(sourceFile, messages);
   }
 
+  /**
+   * @return set of multi-location issues, raised on the given file; might be
+   *         <code>null</code>
+   * @see SourceFile.getCheckMessages() for simple violations
+   */
   @SuppressWarnings("unchecked")
-  public static Set<CxxReportIssue> getMultilineCheckMessages(SourceFile sourceFile) {
-    return (Set<CxxReportIssue>) sourceFile.getData(DataKey.MULTI_LINE_ISSUES);
+  public static Set<CxxReportIssue> getMultiLocationCheckMessages(SourceFile sourceFile) {
+    return (Set<CxxReportIssue>) sourceFile.getData(DataKey.FILE_VIOLATIONS_WITH_MULTIPLE_LOCATIONS);
   }
 
-  public static boolean hasMultilineCheckMessages(SourceFile sourceFile) {
-    Set<CxxReportIssue> issues = getMultilineCheckMessages(sourceFile);
+  /**
+   * @return true if the given file has mult-location issues
+   * @see SourceFile.hasCheckMessages() for simple violations
+   */
+  public static boolean hasMultiLocationCheckMessages(SourceFile sourceFile) {
+    Set<CxxReportIssue> issues = getMultiLocationCheckMessages(sourceFile);
     return issues != null && !issues.isEmpty();
   }
 
-  private static void setMultilineCheckMessages(SourceFile sourceFile, Set<CxxReportIssue> messages) {
-    sourceFile.addData(DataKey.MULTI_LINE_ISSUES, messages);
+  private static void setMultiLocationViolation(SourceFile sourceFile, Set<CxxReportIssue> messages) {
+    sourceFile.addData(DataKey.FILE_VIOLATIONS_WITH_MULTIPLE_LOCATIONS, messages);
   }
 
   public static void eraseMultilineCheckMessages(SourceFile sourceFile) {
-    setMultilineCheckMessages(sourceFile, null);
+    setMultiLocationViolation(sourceFile, null);
   }
 }
