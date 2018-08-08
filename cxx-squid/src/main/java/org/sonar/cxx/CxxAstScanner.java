@@ -214,17 +214,13 @@ public final class CxxAstScanner {
       .subscribeTo(CxxGrammarImpl.statement)
       .build());
 
-    // TODO
     builder.withSquidAstVisitor(ComplexityVisitor.<Grammar>builder()
       .setMetricDef(CxxMetric.COMPLEXITY)
       .subscribeTo(CxxComplexityConstants.CyclomaticComplexityAstNodeTypes)
       .build());
 
     // TODO
-    builder.withSquidAstVisitor(CxxCognitiveComplexityVisitor.<Grammar>builder()
-      .setMetricDef(CxxMetric.COGNITIVE_COMPLEXITY)
-      .subscribeTo(CxxGrammarImpl.functionDefinition)
-      .build());
+    builder.withSquidAstVisitor(new CxxCognitiveComplexityVisitor());
 
     builder.withSquidAstVisitor(new CxxFunctionComplexityVisitor<>(language));
     builder.withSquidAstVisitor(new CxxFunctionSizeVisitor<>(language));
